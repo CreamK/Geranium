@@ -11,7 +11,7 @@ import CoreLocation
 
 @MainActor
 final class BookmarkStore: ObservableObject {
-    static let sharedSuiteName = "group.live.cclerc.geraniumBookmarks"
+    nonisolated(unsafe) static let sharedSuiteName = "group.live.cclerc.geraniumBookmarks"
 
     @Published private(set) var bookmarks: [Bookmark] = []
     @Published private(set) var lastUsedBookmarkID: UUID?
@@ -29,7 +29,9 @@ final class BookmarkStore: ObservableObject {
         loadBookmarksFromDefaults()
         refreshLegacyImportFlag()
         defaultsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.loadBookmarksFromDefaults()
+            Task { @MainActor in
+                self?.loadBookmarksFromDefaults()
+            }
         }
     }
 

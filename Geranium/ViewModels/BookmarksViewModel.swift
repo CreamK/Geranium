@@ -81,7 +81,7 @@ final class BookmarksViewModel: ObservableObject {
         guard let editorMode else { return }
         switch editorMode {
         case .create:
-            store.addBookmark(name: name, coordinate: coordinate, note: note)
+            _ = store.addBookmark(name: name, coordinate: coordinate, note: note)
         case .edit(let bookmark):
             var updated = bookmark
             updated.name = name

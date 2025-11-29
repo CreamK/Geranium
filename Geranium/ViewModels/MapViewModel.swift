@@ -184,7 +184,7 @@ final class MapViewModel: ObservableObject {
             request.region = searchRegion
             
             // 设置结果类型以包含更多地点类型
-            request.resultTypes = [.pointOfInterest, .address, .query]
+            request.resultTypes = [.pointOfInterest, .address]
             
             let search = MKLocalSearch(request: request)
             do {
@@ -300,7 +300,7 @@ final class MapViewModel: ObservableObject {
         // Use existing label if available, otherwise reverse geocode
         if let label = selectedLocation.label, !label.isEmpty {
             // Use the existing label (e.g., from search result)
-            let bookmark = bookmarkStore.addBookmark(
+            _ = bookmarkStore.addBookmark(
                 name: label,
                 coordinate: selectedLocation.coordinate,
                 note: selectedLocation.note
@@ -339,7 +339,7 @@ final class MapViewModel: ObservableObject {
                     bookmarkName = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
                 }
 
-                let bookmark = bookmarkStore.addBookmark(
+                _ = bookmarkStore.addBookmark(
                     name: bookmarkName,
                     coordinate: coordinate,
                     note: nil
@@ -352,7 +352,7 @@ final class MapViewModel: ObservableObject {
             await MainActor.run {
                 // If reverse geocoding fails, use coordinates as name
                 let bookmarkName = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
-                let bookmark = bookmarkStore.addBookmark(
+                _ = bookmarkStore.addBookmark(
                     name: bookmarkName,
                     coordinate: coordinate,
                     note: nil
