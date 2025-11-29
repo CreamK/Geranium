@@ -79,17 +79,18 @@ final class MapViewModel: ObservableObject {
             .store(in: &cancellables)
 
         locationAuthorizer.$currentLocation
-            .compactMap { $0 }
             .receive(on: RunLoop.main)
             .sink { [weak self] location in
                 guard let self else { return }
                 if shouldRestoreToRealLocation {
                     // 恢复定位：强制移动到真实位置，并确保用户位置图标显示
-                    shouldRestoreToRealLocation = false
-                    centerMap(on: location.coordinate)
-                    // 触发视图更新以确保用户位置图标正确显示
-                    objectWillChange.send()
-                } else if !hasCenteredOnUser {
+                    if let location = location {
+                        shouldRestoreToRealLocation = false
+                        centerMap(on: location.coordinate)
+                        // 触发视图更新以确保用户位置图标正确显示
+                        objectWillChange.send()
+                    }
+                } else if !hasCenteredOnUser, let location = location {
                     // 首次启动：移动到用户位置
                     hasCenteredOnUser = true
                     centerMap(on: location.coordinate)
@@ -163,9 +164,20 @@ final class MapViewModel: ObservableObject {
         // 重新请求位置更新以确保获取最新位置
         locationAuthorizer.requestAuthorisation(always: true)
         
-        // 如果已有真实定位，立即移动到该位置（用户位置图标会自动更新）
-        if let currentLocation = locationAuthorizer.currentLocation {
-            centerMap(on: currentLocation.coordinate)
+        // 延迟后移动到真实位置，给系统时间停止模拟并恢复真实定位
+        // 位置监听器也会尝试移动，但这里作为备份确保一定会移动
+        Task { @MainActor in
+            // 等待位置服务恢复（给系统时间停止模拟并恢复真实定位）
+            try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒延迟
+            
+            // 移动到真实位置（如果位置存在）
+            if let location = locationAuthorizer.currentLocation {
+                centerMap(on: location.coordinate)
+                // 清除标志，表示已经处理了恢复定位
+                shouldRestoreToRealLocation = false
+                // 触发视图更新以确保地图和用户位置图标正确显示
+                objectWillChange.send()
+            }
         }
     }
 
