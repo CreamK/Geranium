@@ -48,13 +48,43 @@ jobs:
 
       - name: Update submodules
         run: |
-          # Try to update submodule with pinned commit first
-          if ! git submodule update --init --recursive --depth=1; then
-            echo "Warning: Failed to initialize submodule with pinned commit, using latest instead..."
-            # If pinned commit doesn't exist, clone the latest version
-            rm -rf RootHelper
-            git clone --depth=1 https://github.com/c22dev/Geranium-RH RootHelper
+          echo "Checking submodule status..."
+          # Check if .gitmodules exists
+          if [ ! -f ".gitmodules" ]; then
+            echo "No .gitmodules file found, skipping submodule update."
+            exit 0
           fi
+          
+          # Try to initialize and update submodule with the pinned commit
+          echo "Attempting to initialize submodule with pinned commit..."
+          if git submodule update --init --recursive --depth=1 2>&1; then
+            echo "Submodule updated successfully."
+          else
+            echo "Warning: Failed to initialize submodule with pinned commit."
+            echo "This might be because the commit doesn't exist in the remote repository."
+            echo "Attempting to use the latest commit instead..."
+            
+            # Remove broken submodule reference
+            rm -rf RootHelper
+            
+            # Clone the latest version from the repository
+            echo "Cloning latest version from https://github.com/c22dev/Geranium-RH..."
+            if git clone --depth=1 https://github.com/c22dev/Geranium-RH RootHelper; then
+              echo "Successfully cloned latest version of RootHelper."
+            else
+              echo "Error: Failed to clone RootHelper submodule."
+              echo "The build may fail if RootHelper is required."
+              exit 1
+            fi
+          fi
+          
+          # Verify RootHelper exists
+          if [ ! -d "RootHelper" ]; then
+            echo "Error: RootHelper directory not found after update attempt."
+            exit 1
+          fi
+          
+          echo "Submodule update completed."
 
       - name: Build IPA
         run: |
