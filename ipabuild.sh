@@ -50,7 +50,31 @@ if [ -e "$TARGET_APP/embedded.mobileprovision" ]; then
     rm -rf "$TARGET_APP/embedded.mobileprovision"
 fi
 
-git submodule update --init --recursive
+# Check if RootHelper exists (from workflow or previous initialization)
+if [ -d "$WORKING_LOCATION/RootHelper" ]; then
+    echo "RootHelper directory found, skipping submodule update."
+else
+    echo "RootHelper directory not found, attempting to initialize submodule..."
+    # Try to update submodule with pinned commit
+    # Note: This may fail if the commit doesn't exist, but that's OK if workflow already handled it
+    set +e  # Temporarily disable exit on error for submodule update
+    git submodule update --init --recursive --depth=1
+    SUBMODULE_UPDATE_STATUS=$?
+    set -e  # Re-enable exit on error
+    
+    if [ $SUBMODULE_UPDATE_STATUS -ne 0 ]; then
+        echo "Warning: Submodule update failed (exit code: $SUBMODULE_UPDATE_STATUS)."
+        echo "This is expected if the workflow already cloned RootHelper or if the pinned commit doesn't exist."
+    fi
+    
+    # Final verification that RootHelper exists
+    if [ ! -d "$WORKING_LOCATION/RootHelper" ]; then
+        echo "Error: RootHelper directory is required but not found after update attempt."
+        echo "Please ensure the 'Update submodules' step in the workflow completed successfully."
+        exit 1
+    fi
+fi
+
 cd $WORKING_LOCATION/RootHelper
 make clean
 make
