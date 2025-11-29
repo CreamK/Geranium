@@ -40,6 +40,8 @@ struct MapCanvasView: UIViewRepresentable {
             uiView.setRegion(region, animated: true)
         }
         context.coordinator.syncAnnotations(selected: selectedCoordinate, active: activeCoordinate)
+        // 强制刷新标注视图以确保颜色和文字正确更新
+        context.coordinator.refreshAnnotationViews()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -60,7 +62,6 @@ struct MapCanvasView: UIViewRepresentable {
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
 
             // 优先显示"正在模拟"的标注
-            // 如果正在模拟的位置和已选择的位置相同，只显示"正在模拟"
             if let active {
                 let annotation = MKPointAnnotation()
                 annotation.title = "正在模拟"
@@ -79,11 +80,26 @@ struct MapCanvasView: UIViewRepresentable {
                     }
                 }
             } else if let selected {
-                // 如果没有正在模拟的，才显示已选择标注
+                // 如果没有正在模拟的，显示已选择标注
                 let annotation = MKPointAnnotation()
                 annotation.title = "已选择"
                 annotation.coordinate = selected
                 mapView.addAnnotation(annotation)
+            }
+        }
+        
+        func refreshAnnotationViews() {
+            guard let mapView else { return }
+            // 刷新所有标注视图，确保颜色和文字正确
+            for annotation in mapView.annotations {
+                guard !(annotation is MKUserLocation) else { continue }
+                if let annotationView = mapView.view(for: annotation) as? MKMarkerAnnotationView {
+                    if let title = annotation.title, title == "正在模拟" {
+                        annotationView.markerTintColor = UIColor.systemGreen
+                    } else {
+                        annotationView.markerTintColor = UIColor.systemBlue
+                    }
+                }
             }
         }
 
@@ -112,13 +128,18 @@ struct MapCanvasView: UIViewRepresentable {
             if annotationView == nil {
                 annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
             }
+            
+            // 更新标注内容和样式
             annotationView?.annotation = annotation
             annotationView?.glyphImage = UIImage(systemName: "mappin")
-            if annotation.title??.contains("正在模拟") == true {
+            
+            // 根据标题设置颜色："正在模拟"为绿色，"已选择"为蓝色
+            if let title = annotation.title, title == "正在模拟" {
                 annotationView?.markerTintColor = UIColor.systemGreen
             } else {
                 annotationView?.markerTintColor = UIColor.systemBlue
             }
+            
             return annotationView
         }
     }

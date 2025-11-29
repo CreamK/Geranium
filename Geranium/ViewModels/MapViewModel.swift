@@ -153,8 +153,7 @@ final class MapViewModel: ObservableObject {
         engine.restoreLocation()
         bookmarkStore.markAsLastUsed(nil)
         
-        // 清除选中的位置
-        selectedLocation = nil
+        // 不清除选中的位置，保留"已选择"图标
         
         // 如果已有真实定位，立即移动到该位置
         if let currentLocation = locationAuthorizer.currentLocation {
