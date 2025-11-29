@@ -29,8 +29,6 @@ struct SettingsScreen: View {
     private var settingsList: some View {
         List {
             Section(header: Text("模拟行为")) {
-                Toggle("点击收藏自动开始模拟", isOn: binding(\.autoStartFromBookmarks))
-
                 VStack(alignment: .leading) {
                     Text("默认地图缩放（米）")
                         .font(.subheadline)

@@ -13,6 +13,7 @@ struct MapCanvasView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     var selectedCoordinate: CLLocationCoordinate2D?
     var activeCoordinate: CLLocationCoordinate2D?
+    var mapType: MKMapType
     var onTap: (CLLocationCoordinate2D) -> Void
     var onRegionChange: (CLLocationCoordinate2D) -> Void
 
@@ -21,6 +22,7 @@ struct MapCanvasView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.pointOfInterestFilter = .includingAll
+        mapView.mapType = mapType
         mapView.setRegion(region, animated: false)
 
         let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
@@ -31,6 +33,9 @@ struct MapCanvasView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
+        if uiView.mapType != mapType {
+            uiView.mapType = mapType
+        }
         if !context.coordinator.isUserInteracting {
             uiView.setRegion(region, animated: true)
         }

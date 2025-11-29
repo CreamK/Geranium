@@ -48,7 +48,7 @@ final class BookmarksViewModel: ObservableObject {
     }
 
     func select(_ bookmark: Bookmark) {
-        mapViewModel.focus(on: bookmark, autoStartOverride: settings.autoStartFromBookmarks)
+        mapViewModel.focus(on: bookmark, autoStartOverride: true)
     }
 
     func deleteBookmarks(at offsets: IndexSet) {

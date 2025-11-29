@@ -26,6 +26,7 @@ final class MapViewModel: ObservableObject {
     @Published var showBookmarkSuccess: Bool = false
     @Published var bookmarkSuccessMessage: String = ""
     @Published var isAddingBookmark: Bool = false
+    @Published var mapType: MKMapType = .standard
 
     var statusInfo: MapStatus {
         if let active = engine.session.activePoint {

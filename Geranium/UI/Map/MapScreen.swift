@@ -21,6 +21,7 @@ struct MapScreen: View {
             MapCanvasView(region: $viewModel.mapRegion,
                           selectedCoordinate: viewModel.selectedLocation?.coordinate,
                           activeCoordinate: viewModel.activeLocation?.coordinate,
+                          mapType: viewModel.mapType,
                           onTap: { coordinate in
                               dismissKeyboard()
                               viewModel.handleMapTap(coordinate)
@@ -29,8 +30,12 @@ struct MapScreen: View {
             .ignoresSafeArea(edges: [.top])
 
             VStack(spacing: 12) {
-                searchBar
-                    .padding(.top, 50)
+                HStack(spacing: 8) {
+                    searchBar
+                    mapTypeButton
+                }
+                .padding(.top, 50)
+                .padding(.horizontal)
 
                 if viewModel.isSearching {
                     ProgressView("正在搜索…")
@@ -125,7 +130,72 @@ struct MapScreen: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal)
+    }
+
+    private var mapTypeButton: some View {
+        Menu {
+            Button {
+                viewModel.mapType = .standard
+            } label: {
+                HStack {
+                    Image(systemName: "map")
+                    Text("标准模式")
+                    Spacer()
+                    if viewModel.mapType == .standard {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            }
+
+            Button {
+                viewModel.mapType = .satellite
+            } label: {
+                HStack {
+                    Image(systemName: "globe")
+                    Text("卫星地图")
+                    Spacer()
+                    if viewModel.mapType == .satellite {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            }
+
+            Button {
+                viewModel.mapType = .hybrid
+            } label: {
+                HStack {
+                    Image(systemName: "map.fill")
+                    Text("混合模式")
+                    Spacer()
+                    if viewModel.mapType == .hybrid {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: mapTypeIcon)
+                .font(.body)
+                .foregroundColor(.primary)
+                .padding(10)
+                .background(.ultraThinMaterial, in: Circle())
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+        }
+    }
+
+    private var mapTypeIcon: String {
+        switch viewModel.mapType {
+        case .standard:
+            return "map"
+        case .satellite:
+            return "globe"
+        case .hybrid:
+            return "map.fill"
+        default:
+            return "map"
+        }
     }
 }
 
