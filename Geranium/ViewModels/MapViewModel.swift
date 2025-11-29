@@ -44,15 +44,6 @@ final class MapViewModel: ObservableObject {
         )
     }
 
-    var primaryButtonTitle: String {
-        engine.session.isActive ? "停止模拟" : "开始模拟"
-    }
-
-    var primaryButtonDisabled: Bool {
-        if engine.session.isActive { return false }
-        return selectedLocation == nil
-    }
-
     var activeLocation: LocationPoint? {
         engine.session.activePoint
     }
@@ -134,30 +125,13 @@ final class MapViewModel: ObservableObject {
         editorMode = nil
     }
 
-    func toggleSpoofing() {
-        if engine.session.isActive {
-            stopSpoofing()
-        } else {
-            startSpoofingSelected()
-        }
-    }
-
-    func startSpoofingSelected() {
-        guard let selectedLocation else {
-            engine.recordError(.invalidCoordinate)
-            errorMessage = "请先在地图上选择一个有效的位置"
-            showErrorAlert = true
-            return
-        }
-        startSpoofing(point: selectedLocation, bookmark: nil)
-    }
-
     func focus(on bookmark: Bookmark, autoStartOverride: Bool? = nil) {
         let point = bookmark.locationPoint
         selectedLocation = point
         centerMap(on: point.coordinate)
 
-        let shouldAutoStart = autoStartOverride ?? settings.autoStartFromBookmarks
+        // 始终自动开始模拟，除非明确指定不启动
+        let shouldAutoStart = autoStartOverride ?? true
         if shouldAutoStart {
             startSpoofing(point: point, bookmark: bookmark)
         }
@@ -209,10 +183,8 @@ final class MapViewModel: ObservableObject {
             searchRegion.span = expandedSpan
             request.region = searchRegion
             
-            // 设置结果类型以包含更多地点类型（如果支持）
-            if #available(iOS 13.0, *) {
-                request.resultTypes = [.pointOfInterest, .address, .query]
-            }
+            // 设置结果类型以包含更多地点类型
+            request.resultTypes = [.pointOfInterest, .address, .query]
             
             let search = MKLocalSearch(request: request)
             do {
