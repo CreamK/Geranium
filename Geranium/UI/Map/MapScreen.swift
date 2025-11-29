@@ -156,6 +156,20 @@ private struct MapControlPanel: View {
             }
             .disabled(viewModel.primaryButtonDisabled)
 
+            Button(action: viewModel.restoreLocation) {
+                HStack {
+                    Image(systemName: "location.circle.fill")
+                        .font(.body)
+                    Text("恢复定位")
+                        .font(.headline)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.secondary.opacity(0.2))
+                .foregroundColor(.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))

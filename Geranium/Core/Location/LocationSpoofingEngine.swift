@@ -32,6 +32,13 @@ final class LocationSpoofingEngine: ObservableObject {
         session.state = .idle
     }
 
+    func restoreLocation() {
+        // 停止模拟以恢复真实定位
+        LocSimManager.stopLocSim()
+        session.state = .idle
+        session.lastError = nil
+    }
+
     func recordError(_ error: LocationSpoofingError) {
         session.lastError = error
     }

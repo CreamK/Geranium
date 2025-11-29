@@ -109,6 +109,51 @@ final class BookmarkStore: ObservableObject {
         return addedCount
     }
 
+    /// 导出书签为 JSON 数据
+    func exportBookmarksAsJSON() throws -> Data {
+        let bookmarksData = bookmarks.map(\.dictionaryRepresentation)
+        let jsonData = try JSONSerialization.data(withJSONObject: bookmarksData, options: .prettyPrinted)
+        return jsonData
+    }
+
+    /// 从 JSON 数据导入书签
+    @discardableResult
+    func importBookmarksFromJSON(_ jsonData: Data) throws -> (imported: Int, duplicates: Int) {
+        let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+        guard let bookmarksArray = jsonObject as? [[String: Any]] else {
+            throw BookmarkImportError.invalidFormat
+        }
+
+        var importedCount = 0
+        var duplicatesCount = 0
+
+        for bookmarkDict in bookmarksArray {
+            guard let bookmark = Bookmark(dictionary: bookmarkDict) else {
+                continue
+            }
+
+            // 检查是否已存在相同的书签（基于坐标和名称）
+            let duplicate = bookmarks.contains(where: { existing in
+                abs(existing.coordinate.latitude - bookmark.coordinate.latitude) < 0.00001 &&
+                abs(existing.coordinate.longitude - bookmark.coordinate.longitude) < 0.00001 &&
+                existing.name == bookmark.name
+            })
+
+            if !duplicate {
+                bookmarks.append(bookmark)
+                importedCount += 1
+            } else {
+                duplicatesCount += 1
+            }
+        }
+
+        if importedCount > 0 {
+            persist()
+        }
+
+        return (imported: importedCount, duplicates: duplicatesCount)
+    }
+
     private func loadBookmarksFromDefaults() {
         guard let serialized = defaults.array(forKey: storageKey) as? [[String: Any]] else {
             bookmarks = []
@@ -141,6 +186,23 @@ final class BookmarkStore: ObservableObject {
     private func refreshLegacyImportFlag() {
         let alreadyImported = defaults.bool(forKey: legacyImportKey)
         canImportLegacyRecords = !alreadyImported && LegacyMikaImporter.hasRecords
+    }
+}
+
+enum BookmarkImportError: LocalizedError {
+    case invalidFormat
+    case fileNotFound
+    case readFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFormat:
+            return "文件格式无效，请确保是有效的 JSON 文件。"
+        case .fileNotFound:
+            return "文件未找到。"
+        case .readFailed:
+            return "读取文件失败。"
+        }
     }
 }
 

@@ -158,6 +158,20 @@ final class MapViewModel: ObservableObject {
         bookmarkStore.markAsLastUsed(nil)
     }
 
+    func restoreLocation() {
+        // 恢复真实定位：停止模拟
+        engine.restoreLocation()
+        bookmarkStore.markAsLastUsed(nil)
+        
+        // 如果已有真实定位，将地图中心移到真实定位
+        if let currentLocation = locationAuthorizer.currentLocation {
+            centerMap(on: currentLocation.coordinate)
+        } else {
+            // 请求获取真实定位
+            locationAuthorizer.requestAuthorisation(always: true)
+        }
+    }
+
     func performSearch() {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty {

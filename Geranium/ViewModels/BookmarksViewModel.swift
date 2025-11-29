@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreLocation
+import SwiftUI
 
 @MainActor
 final class BookmarksViewModel: ObservableObject {
@@ -14,6 +15,9 @@ final class BookmarksViewModel: ObservableObject {
     @Published var showImportPrompt: Bool = false
     @Published var importResultMessage: String?
     @Published var showImportResult: Bool = false
+    @Published var shareSheetItems: [Any]?
+    @Published var showShareSheet: Bool = false
+    @Published var showImportFilePicker: Bool = false
 
     private let store: BookmarkStore
     private unowned let mapViewModel: MapViewModel
@@ -86,5 +90,59 @@ final class BookmarksViewModel: ObservableObject {
             store.updateBookmark(updated)
         }
         self.editorMode = nil
+    }
+
+    func shareBookmarks() {
+        guard !store.bookmarks.isEmpty else {
+            importResultMessage = "没有可分享的书签。"
+            showImportResult = true
+            return
+        }
+
+        do {
+            let jsonData = try store.exportBookmarksAsJSON()
+            
+            // 创建临时文件
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Geranium书签_\(Date().timeIntervalSince1970).json")
+            try jsonData.write(to: tempURL)
+            
+            shareSheetItems = [tempURL]
+            showShareSheet = true
+        } catch {
+            importResultMessage = "导出失败：\(error.localizedDescription)"
+            showImportResult = true
+        }
+    }
+
+    func importBookmarks(from url: URL) {
+        // 在 macOS 上需要访问文件的安全作用域
+        #if os(macOS)
+        _ = url.startAccessingSecurityScopedResource()
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        #endif
+        
+        do {
+            let jsonData = try Data(contentsOf: url)
+            let result = try store.importBookmarksFromJSON(jsonData)
+            
+            if result.imported > 0 {
+                if result.duplicates > 0 {
+                    importResultMessage = String(format: "成功导入 %d 条书签，%d 条重复已跳过。", result.imported, result.duplicates)
+                } else {
+                    importResultMessage = String(format: "成功导入 %d 条书签。", result.imported)
+                }
+            } else {
+                importResultMessage = result.duplicates > 0 ?
+                    String(format: "所有 %d 条书签都已存在，已跳过。", result.duplicates) :
+                    "没有找到有效的书签数据。"
+            }
+            showImportResult = true
+        } catch {
+            importResultMessage = "导入失败：\(error.localizedDescription)"
+            showImportResult = true
+        }
     }
 }
