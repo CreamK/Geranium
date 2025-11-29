@@ -59,6 +59,11 @@ struct MapScreen: View {
                   message: Text(viewModel.errorMessage ?? "发生未知错误"),
                   dismissButton: .default(Text("确定")))
         }
+        .alert(isPresented: $viewModel.showBookmarkSuccess) {
+            Alert(title: Text("收藏成功"),
+                  message: Text(viewModel.bookmarkSuccessMessage),
+                  dismissButton: .default(Text("确定")))
+        }
         .sheet(item: $viewModel.editorMode, onDismiss: {
             viewModel.completeEditorFlow()
         }) { mode in
@@ -168,6 +173,29 @@ private struct MapControlPanel: View {
                 .background(Color.secondary.opacity(0.2))
                 .foregroundColor(.primary)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
+            if viewModel.selectedLocation != nil {
+                Button(action: viewModel.quickAddBookmark) {
+                    HStack {
+                        if viewModel.isAddingBookmark {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "bookmark.fill")
+                                .font(.body)
+                        }
+                        Text(viewModel.isAddingBookmark ? "收藏中..." : "快速收藏")
+                            .font(.headline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(viewModel.isAddingBookmark ? Color.secondary.opacity(0.3) : Color.orange)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .disabled(viewModel.isAddingBookmark)
             }
 
         }

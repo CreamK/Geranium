@@ -7,6 +7,7 @@
 
 import Foundation
 import MapKit
+import CoreLocation
 import Combine
 import SwiftUI
 
@@ -22,6 +23,9 @@ final class MapViewModel: ObservableObject {
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching: Bool = false
     @Published var showSearchResults: Bool = false
+    @Published var showBookmarkSuccess: Bool = false
+    @Published var bookmarkSuccessMessage: String = ""
+    @Published var isAddingBookmark: Bool = false
 
     var statusInfo: MapStatus {
         if let active = engine.session.activePoint {
@@ -218,6 +222,94 @@ final class MapViewModel: ObservableObject {
         showSearchResults = false
         isSearching = false
         searchTask?.cancel()
+    }
+
+    func quickAddBookmark() {
+        guard let selectedLocation = selectedLocation else {
+            errorMessage = "请先在地图上选择一个位置"
+            showErrorAlert = true
+            return
+        }
+
+        // Check if this location is already bookmarked
+        let existingBookmark = bookmarkStore.bookmarks.first { bookmark in
+            abs(bookmark.coordinate.latitude - selectedLocation.coordinate.latitude) < 0.00001 &&
+            abs(bookmark.coordinate.longitude - selectedLocation.coordinate.longitude) < 0.00001
+        }
+
+        if existingBookmark != nil {
+            errorMessage = "此位置已在收藏列表中"
+            showErrorAlert = true
+            return
+        }
+
+        isAddingBookmark = true
+
+        // Use existing label if available, otherwise reverse geocode
+        if let label = selectedLocation.label, !label.isEmpty {
+            // Use the existing label (e.g., from search result)
+            let bookmark = bookmarkStore.addBookmark(
+                name: label,
+                coordinate: selectedLocation.coordinate,
+                note: selectedLocation.note
+            )
+            bookmarkSuccessMessage = "已收藏：\(label)"
+            showBookmarkSuccess = true
+            isAddingBookmark = false
+        } else {
+            // Reverse geocode to get location name
+            Task {
+                await reverseGeocodeAndAddBookmark(coordinate: selectedLocation.coordinate)
+            }
+        }
+    }
+
+    private func reverseGeocodeAndAddBookmark(coordinate: CLLocationCoordinate2D) async {
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            await MainActor.run {
+                let bookmarkName: String
+                if let placemark = placemarks.first {
+                    // Try to get a meaningful name from the placemark
+                    if let name = placemark.name, !name.isEmpty {
+                        bookmarkName = name
+                    } else if let thoroughfare = placemark.thoroughfare, !thoroughfare.isEmpty {
+                        bookmarkName = thoroughfare
+                    } else if let locality = placemark.locality, !locality.isEmpty {
+                        bookmarkName = locality
+                    } else {
+                        bookmarkName = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
+                    }
+                } else {
+                    bookmarkName = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
+                }
+
+                let bookmark = bookmarkStore.addBookmark(
+                    name: bookmarkName,
+                    coordinate: coordinate,
+                    note: nil
+                )
+                bookmarkSuccessMessage = "已收藏：\(bookmarkName)"
+                showBookmarkSuccess = true
+                isAddingBookmark = false
+            }
+        } catch {
+            await MainActor.run {
+                // If reverse geocoding fails, use coordinates as name
+                let bookmarkName = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
+                let bookmark = bookmarkStore.addBookmark(
+                    name: bookmarkName,
+                    coordinate: coordinate,
+                    note: nil
+                )
+                bookmarkSuccessMessage = "已收藏：\(bookmarkName)"
+                showBookmarkSuccess = true
+                isAddingBookmark = false
+            }
+        }
     }
 
     private func startSpoofing(point: LocationPoint, bookmark: Bookmark?) {
