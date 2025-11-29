@@ -137,7 +137,10 @@ struct BookmarksScreen: View {
                             Button {
                                 viewModel.startSimulation(bookmark)
                             } label: {
-                                Label("模拟", systemImage: "location.fill")
+                                Label(
+                                    viewModel.isBookmarkSimulating(bookmark) ? "取消模拟" : "模拟",
+                                    systemImage: viewModel.isBookmarkSimulating(bookmark) ? "location.slash.fill" : "location.fill"
+                                )
                             }
                             
                             Button {

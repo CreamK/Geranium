@@ -165,10 +165,15 @@ final class BookmarksViewModel: ObservableObject {
         }
     }
 
+    func isBookmarkSimulating(_ bookmark: Bookmark) -> Bool {
+        // 检查该书签是否正在被模拟
+        return store.lastUsedBookmarkID == bookmark.id && 
+               mapViewModel.activeLocation != nil
+    }
+    
     func startSimulation(_ bookmark: Bookmark) {
         // 检查该书签是否正在被模拟
-        let isCurrentlySimulating = store.lastUsedBookmarkID == bookmark.id && 
-                                     mapViewModel.activeLocation != nil
+        let isCurrentlySimulating = isBookmarkSimulating(bookmark)
         
         if isCurrentlySimulating {
             // 如果正在模拟该书签，则停止模拟
