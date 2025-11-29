@@ -61,7 +61,7 @@ struct MapCanvasView: UIViewRepresentable {
             guard let mapView else { return }
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
 
-            // 优先显示"正在模拟"的标注
+            // 优先显示"正在模拟"的标注（绿色）
             if let active {
                 let annotation = MKPointAnnotation()
                 annotation.title = "正在模拟"
@@ -80,11 +80,16 @@ struct MapCanvasView: UIViewRepresentable {
                     }
                 }
             } else if let selected {
-                // 如果没有正在模拟的，显示已选择标注
+                // 如果没有正在模拟的，显示已选择标注（蓝色）
                 let annotation = MKPointAnnotation()
                 annotation.title = "已选择"
                 annotation.coordinate = selected
                 mapView.addAnnotation(annotation)
+            }
+            
+            // 立即刷新标注视图以确保颜色正确显示
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshAnnotationViews()
             }
         }
         

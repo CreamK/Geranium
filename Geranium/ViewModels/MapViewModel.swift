@@ -84,9 +84,11 @@ final class MapViewModel: ObservableObject {
             .sink { [weak self] location in
                 guard let self else { return }
                 if shouldRestoreToRealLocation {
-                    // 恢复定位：强制移动到真实位置
+                    // 恢复定位：强制移动到真实位置，并确保用户位置图标显示
                     shouldRestoreToRealLocation = false
                     centerMap(on: location.coordinate)
+                    // 触发视图更新以确保用户位置图标正确显示
+                    objectWillChange.send()
                 } else if !hasCenteredOnUser {
                     // 首次启动：移动到用户位置
                     hasCenteredOnUser = true
@@ -155,14 +157,15 @@ final class MapViewModel: ObservableObject {
         
         // 不清除选中的位置，保留"已选择"图标
         
-        // 如果已有真实定位，立即移动到该位置
+        // 设置标志，等待位置更新后移动到真实位置
+        shouldRestoreToRealLocation = true
+        
+        // 重新请求位置更新以确保获取最新位置
+        locationAuthorizer.requestAuthorisation(always: true)
+        
+        // 如果已有真实定位，立即移动到该位置（用户位置图标会自动更新）
         if let currentLocation = locationAuthorizer.currentLocation {
             centerMap(on: currentLocation.coordinate)
-        } else {
-            // 设置标志，等待位置更新后移动到真实位置
-            shouldRestoreToRealLocation = true
-            // 请求获取真实定位
-            locationAuthorizer.requestAuthorisation(always: true)
         }
     }
 
