@@ -54,6 +54,7 @@ final class MapViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let locationAuthorizer = LocationModel()
     private var hasCenteredOnUser = false
+    private var shouldRestoreToRealLocation = false
     private var searchTask: Task<Void, Never>?
 
     init(engine: LocationSpoofingEngine, settings: LocSimSettings, bookmarkStore: BookmarkStore) {
@@ -82,7 +83,12 @@ final class MapViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] location in
                 guard let self else { return }
-                if !hasCenteredOnUser {
+                if shouldRestoreToRealLocation {
+                    // 恢复定位：强制移动到真实位置
+                    shouldRestoreToRealLocation = false
+                    centerMap(on: location.coordinate)
+                } else if !hasCenteredOnUser {
+                    // 首次启动：移动到用户位置
                     hasCenteredOnUser = true
                     centerMap(on: location.coordinate)
                 }
@@ -147,10 +153,15 @@ final class MapViewModel: ObservableObject {
         engine.restoreLocation()
         bookmarkStore.markAsLastUsed(nil)
         
-        // 如果已有真实定位，将地图中心移到真实定位
+        // 清除选中的位置
+        selectedLocation = nil
+        
+        // 如果已有真实定位，立即移动到该位置
         if let currentLocation = locationAuthorizer.currentLocation {
             centerMap(on: currentLocation.coordinate)
         } else {
+            // 设置标志，等待位置更新后移动到真实位置
+            shouldRestoreToRealLocation = true
             // 请求获取真实定位
             locationAuthorizer.requestAuthorisation(always: true)
         }

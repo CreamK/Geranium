@@ -206,12 +206,15 @@ private struct MapControlPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(viewModel.selectedLocation?.label ?? "当前预览")
-                        .font(.headline)
                     if viewModel.activeLocation != nil {
+                        Text("已模拟")
+                            .font(.headline)
                         Image(systemName: "location.fill")
                             .foregroundColor(.green)
                             .font(.caption)
+                    } else {
+                        Text(viewModel.selectedLocation?.label ?? "当前预览")
+                            .font(.headline)
                     }
                 }
                 if let coordinate = viewModel.selectedLocation?.coordinateDescription {

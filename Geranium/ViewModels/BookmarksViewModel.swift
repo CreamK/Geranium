@@ -166,6 +166,16 @@ final class BookmarksViewModel: ObservableObject {
     }
 
     func startSimulation(_ bookmark: Bookmark) {
-        mapViewModel.focus(on: bookmark, autoStartOverride: true)
+        // 检查该书签是否正在被模拟
+        let isCurrentlySimulating = store.lastUsedBookmarkID == bookmark.id && 
+                                     mapViewModel.activeLocation != nil
+        
+        if isCurrentlySimulating {
+            // 如果正在模拟该书签，则停止模拟
+            mapViewModel.stopSpoofing()
+        } else {
+            // 否则开始模拟该书签
+            mapViewModel.focus(on: bookmark, autoStartOverride: true)
+        }
     }
 }
