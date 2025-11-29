@@ -111,6 +111,14 @@ struct BookmarksScreen: View {
                                          action: {
                             viewModel.select(bookmark)
                         })
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                viewModel.shareBookmark(bookmark)
+                            } label: {
+                                Label("分享", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.blue)
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 viewModel.delete(bookmark)
@@ -124,6 +132,33 @@ struct BookmarksScreen: View {
                                 Label("编辑", systemImage: "pencil")
                             }
                             .tint(.orange)
+                        }
+                        .contextMenu {
+                            Button {
+                                viewModel.startSimulation(bookmark)
+                            } label: {
+                                Label("模拟", systemImage: "location.fill")
+                            }
+                            
+                            Button {
+                                viewModel.shareBookmark(bookmark)
+                            } label: {
+                                Label("分享", systemImage: "square.and.arrow.up")
+                            }
+                            
+                            Button {
+                                viewModel.edit(bookmark)
+                            } label: {
+                                Label("修改", systemImage: "pencil")
+                            }
+                            
+                            Divider()
+                            
+                            Button(role: .destructive) {
+                                viewModel.delete(bookmark)
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
                         }
                     }
                     .onMove(perform: viewModel.moveBookmarks)

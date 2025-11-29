@@ -145,4 +145,27 @@ final class BookmarksViewModel: ObservableObject {
             showImportResult = true
         }
     }
+
+    func shareBookmark(_ bookmark: Bookmark) {
+        do {
+            // 创建包含单个书签的 JSON 数据
+            let bookmarkDict = bookmark.dictionaryRepresentation
+            let jsonData = try JSONSerialization.data(withJSONObject: [bookmarkDict], options: .prettyPrinted)
+            
+            // 创建临时文件
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(bookmark.name)_\(Date().timeIntervalSince1970).json")
+            try jsonData.write(to: tempURL)
+            
+            shareSheetItems = [tempURL]
+            showShareSheet = true
+        } catch {
+            importResultMessage = "分享失败：\(error.localizedDescription)"
+            showImportResult = true
+        }
+    }
+
+    func startSimulation(_ bookmark: Bookmark) {
+        mapViewModel.focus(on: bookmark, autoStartOverride: true)
+    }
 }
