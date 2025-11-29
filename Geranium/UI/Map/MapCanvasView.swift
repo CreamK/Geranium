@@ -59,14 +59,27 @@ struct MapCanvasView: UIViewRepresentable {
             guard let mapView else { return }
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
 
+            // 优先显示"正在模拟"的标注
+            // 如果正在模拟的位置和已选择的位置相同，只显示"正在模拟"
             if let active {
                 let annotation = MKPointAnnotation()
                 annotation.title = "正在模拟"
                 annotation.coordinate = active
                 mapView.addAnnotation(annotation)
-            }
-
-            if let selected {
+                
+                // 只有当已选择的位置和正在模拟的位置不同时，才显示已选择标注
+                if let selected {
+                    let isSameLocation = abs(selected.latitude - active.latitude) < 0.00001 &&
+                                       abs(selected.longitude - active.longitude) < 0.00001
+                    if !isSameLocation {
+                        let selectedAnnotation = MKPointAnnotation()
+                        selectedAnnotation.title = "已选择"
+                        selectedAnnotation.coordinate = selected
+                        mapView.addAnnotation(selectedAnnotation)
+                    }
+                }
+            } else if let selected {
+                // 如果没有正在模拟的，才显示已选择标注
                 let annotation = MKPointAnnotation()
                 annotation.title = "已选择"
                 annotation.coordinate = selected

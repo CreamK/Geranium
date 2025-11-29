@@ -194,15 +194,85 @@ final class MapViewModel: ObservableObject {
         searchTask?.cancel()
         searchTask = Task { [weak self] in
             guard let self else { return }
+            
+            // 创建搜索请求 - 使用扩大的搜索区域以获得更多结果
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = query
+            
+            // 扩大搜索区域：使用当前地图中心但扩大搜索范围
+            // 这样可以获得更多模糊匹配的结果
+            var searchRegion = mapRegion
+            let expandedSpan = MKCoordinateSpan(
+                latitudeDelta: min(max(mapRegion.span.latitudeDelta * 30, 5.0), 50.0),
+                longitudeDelta: min(max(mapRegion.span.longitudeDelta * 30, 5.0), 50.0)
+            )
+            searchRegion.span = expandedSpan
+            request.region = searchRegion
+            
+            // 设置结果类型以包含更多地点类型（如果支持）
+            if #available(iOS 13.0, *) {
+                request.resultTypes = [.pointOfInterest, .address, .query]
+            }
+            
             let search = MKLocalSearch(request: request)
             do {
                 let response = try await search.start()
-                let mapped = response.mapItems.map(SearchResult.init)
+                
+                // 去重：基于坐标和名称，避免显示重复的结果
+                var seenItems = Set<String>()
+                var mapped = response.mapItems.compactMap { mapItem -> SearchResult? in
+                    let coordinate = mapItem.placemark.coordinate
+                    let coordKey = String(format: "%.4f,%.4f", coordinate.latitude, coordinate.longitude)
+                    let nameKey = mapItem.name ?? ""
+                    let uniqueKey = "\(coordKey)-\(nameKey)"
+                    
+                    if seenItems.contains(uniqueKey) {
+                        return nil
+                    }
+                    seenItems.insert(uniqueKey)
+                    return SearchResult(mapItem: mapItem)
+                }
+                
+                // 按相关性进行模糊匹配排序：完全匹配 > 开头匹配 > 包含匹配
+                let queryLower = query.lowercased()
+                let queryWords = queryLower.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+                
+                mapped.sort { first, second in
+                    let firstTitle = first.title.lowercased()
+                    let secondTitle = second.title.lowercased()
+                    let firstSubtitle = first.subtitle.lowercased()
+                    let secondSubtitle = second.subtitle.lowercased()
+                    
+                    // 完全匹配优先
+                    let firstExact = firstTitle == queryLower
+                    let secondExact = secondTitle == queryLower
+                    if firstExact != secondExact { return firstExact }
+                    
+                    // 开头匹配其次
+                    let firstStarts = firstTitle.hasPrefix(queryLower)
+                    let secondStarts = secondTitle.hasPrefix(queryLower)
+                    if firstStarts != secondStarts { return firstStarts }
+                    
+                    // 包含匹配再次
+                    let firstContains = firstTitle.contains(queryLower) || firstSubtitle.contains(queryLower)
+                    let secondContains = secondTitle.contains(queryLower) || secondSubtitle.contains(queryLower)
+                    if firstContains != secondContains { return firstContains }
+                    
+                    // 多词匹配：计算匹配的词数
+                    let firstWordMatches = queryWords.filter { firstTitle.contains($0) || firstSubtitle.contains($0) }.count
+                    let secondWordMatches = queryWords.filter { secondTitle.contains($0) || secondSubtitle.contains($0) }.count
+                    if firstWordMatches != secondWordMatches { return firstWordMatches > secondWordMatches }
+                    
+                    // 最后按字母顺序
+                    return firstTitle < secondTitle
+                }
+                
+                // 显示更多结果（最多30个）
+                let maxResults = min(mapped.count, 30)
+                
                 await MainActor.run {
-                    self.searchResults = mapped
-                    self.showSearchResults = !mapped.isEmpty
+                    self.searchResults = Array(mapped.prefix(maxResults))
+                    self.showSearchResults = !self.searchResults.isEmpty
                     self.isSearching = false
                 }
             } catch {
