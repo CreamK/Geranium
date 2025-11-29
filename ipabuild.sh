@@ -50,30 +50,51 @@ if [ -e "$TARGET_APP/embedded.mobileprovision" ]; then
     rm -rf "$TARGET_APP/embedded.mobileprovision"
 fi
 
+# Ensure we're in the repository root for submodule operations
+cd "$WORKING_LOCATION"
+
 # Check if RootHelper exists (from workflow or previous initialization)
-if [ -d "$WORKING_LOCATION/RootHelper" ]; then
+if [ -d "$WORKING_LOCATION/RootHelper" ] && [ -d "$WORKING_LOCATION/RootHelper/.git" ]; then
     echo "RootHelper directory found, skipping submodule update."
 else
-    echo "RootHelper directory not found, attempting to initialize submodule..."
+    echo "RootHelper directory not found or incomplete, attempting to initialize..."
+    
     # Try to update submodule with pinned commit
-    # Note: This may fail if the commit doesn't exist, but that's OK if workflow already handled it
+    # Note: This may fail if the commit doesn't exist
     set +e  # Temporarily disable exit on error for submodule update
-    git submodule update --init --recursive --depth=1
+    git submodule update --init --recursive --depth=1 2>&1
     SUBMODULE_UPDATE_STATUS=$?
     set -e  # Re-enable exit on error
     
     if [ $SUBMODULE_UPDATE_STATUS -ne 0 ]; then
         echo "Warning: Submodule update failed (exit code: $SUBMODULE_UPDATE_STATUS)."
-        echo "This is expected if the workflow already cloned RootHelper or if the pinned commit doesn't exist."
+        echo "This might be because the pinned commit doesn't exist in the remote repository."
+        echo "Attempting to clone the latest version instead..."
+        
+        # Remove broken submodule reference if it exists
+        if [ -d "$WORKING_LOCATION/RootHelper" ]; then
+            rm -rf "$WORKING_LOCATION/RootHelper"
+        fi
+        
+        # Clone the latest version from the repository
+        echo "Cloning latest version from https://github.com/c22dev/Geranium-RH..."
+        if git clone --depth=1 https://github.com/c22dev/Geranium-RH "$WORKING_LOCATION/RootHelper"; then
+            echo "Successfully cloned latest version of RootHelper."
+        else
+            echo "Error: Failed to clone RootHelper repository."
+            exit 1
+        fi
     fi
     
     # Final verification that RootHelper exists
     if [ ! -d "$WORKING_LOCATION/RootHelper" ]; then
         echo "Error: RootHelper directory is required but not found after update attempt."
-        echo "Please ensure the 'Update submodules' step in the workflow completed successfully."
         exit 1
     fi
 fi
+
+# Return to build directory
+cd "$WORKING_LOCATION/build"
 
 cd $WORKING_LOCATION/RootHelper
 make clean
