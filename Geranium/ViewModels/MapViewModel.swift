@@ -103,10 +103,15 @@ final class MapViewModel: ObservableObject {
     }
 
     func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
-        selectedLocation = LocationPoint(coordinate: coordinate, label: nil)
+        let locationPoint = LocationPoint(coordinate: coordinate, label: nil)
+        selectedLocation = locationPoint
+        
         if settings.autoCenterOnSelection {
             centerMap(on: coordinate)
         }
+        
+        // 自动开始模拟选中的位置
+        startSpoofing(point: locationPoint, bookmark: nil)
     }
 
     func updateMapCenter(_ coordinate: CLLocationCoordinate2D) {
@@ -209,11 +214,15 @@ final class MapViewModel: ObservableObject {
 
     func selectSearchResult(_ result: SearchResult) {
         let coordinate = result.mapItem.placemark.coordinate
-        selectedLocation = LocationPoint(coordinate: coordinate, label: result.title, note: result.subtitle)
+        let locationPoint = LocationPoint(coordinate: coordinate, label: result.title, note: result.subtitle)
+        selectedLocation = locationPoint
         centerMap(on: coordinate)
         showSearchResults = false
         searchResults = []
         searchText = result.title
+        
+        // 自动开始模拟选中的位置
+        startSpoofing(point: locationPoint, bookmark: nil)
     }
 
     func clearSearch() {

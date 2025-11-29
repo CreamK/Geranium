@@ -51,8 +51,6 @@ struct MapScreen: View {
                 MapControlPanel(viewModel: viewModel)
                     .padding()
             }
-
-            FloatingAddButton(action: viewModel.openBookmarkCreator)
         }
         .alert(isPresented: $viewModel.showErrorAlert) {
             Alert(title: Text(""),
@@ -137,8 +135,15 @@ private struct MapControlPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.selectedLocation?.label ?? "当前预览")
-                    .font(.headline)
+                HStack {
+                    Text(viewModel.selectedLocation?.label ?? "当前预览")
+                        .font(.headline)
+                    if viewModel.activeLocation != nil {
+                        Image(systemName: "location.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    }
+                }
                 if let coordinate = viewModel.selectedLocation?.coordinateDescription {
                     Text(coordinate)
                         .font(.caption)
@@ -148,18 +153,12 @@ private struct MapControlPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if viewModel.activeLocation != nil {
+                    Text("定位模拟已开启")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
             }
-
-            Button(action: viewModel.toggleSpoofing) {
-                Text(viewModel.primaryButtonTitle)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(viewModel.primaryButtonDisabled ? Color.gray.opacity(0.3) : Color.accentColor)
-                    .foregroundColor(viewModel.primaryButtonDisabled ? .secondary : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .disabled(viewModel.primaryButtonDisabled)
 
             Button(action: viewModel.restoreLocation) {
                 HStack {
@@ -204,29 +203,6 @@ private struct MapControlPanel: View {
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06))
-        }
-    }
-}
-
-private struct FloatingAddButton: View {
-    var action: () -> Void
-
-    var body: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Button(action: action) {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                        .padding(18)
-                        .background(Color.accentColor, in: Circle())
-                        .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
-                }
-                .padding(.trailing, 24)
-                .padding(.bottom, 120)
-            }
         }
     }
 }
