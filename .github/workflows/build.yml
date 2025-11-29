@@ -1,0 +1,68 @@
+name: Build TrollStore IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Theos
+        run: |
+          if [ ! -d "$HOME/theos" ]; then
+            git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          fi
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Download iOS SDK 14.5
+        run: |
+          mkdir -p $HOME/theos/sdks
+          cd $HOME/theos/sdks
+          if [ ! -d "iPhoneOS14.5.sdk" ]; then
+            curl -LO https://github.com/theos/sdks/archive/master.zip
+            unzip -q master.zip
+            mv sdks-master/iPhoneOS14.5.sdk ./ 2>/dev/null || true
+            if [ ! -d "iPhoneOS14.5.sdk" ]; then
+              # Fallback: use Xcode's SDK
+              XCODE_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+              ln -s "$XCODE_SDK_PATH" iPhoneOS14.5.sdk
+            fi
+            rm -rf master.zip sdks-master
+          fi
+
+      - name: Install dependencies
+        run: |
+          brew install ldid
+
+      - name: Build IPA
+        run: |
+          chmod +x ipabuild.sh
+          ./ipabuild.sh
+
+      - name: Upload TrollStore IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Geranium-tipa
+          path: build/Geranium.tipa
+          if-no-files-found: error
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/Geranium.tipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
