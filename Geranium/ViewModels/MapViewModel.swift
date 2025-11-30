@@ -159,40 +159,29 @@ final class MapViewModel: ObservableObject {
         // 清除选中的位置，这样地图上就不会显示"已选择"图标，只显示用户真实位置
         selectedLocation = nil
         
-        // 设置标志，等待位置更新后移动到真实位置
-        shouldRestoreToRealLocation = true
-        
-        // 强制刷新位置服务以获取真实位置
-        locationAuthorizer.refreshLocation()
-        
-        // 主动检查并跳转到真实位置
+        // 像搜索选中一样，直接获取真实位置并跳转
         Task { @MainActor in
             // 等待模拟停止（给系统时间恢复真实定位）
-            try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒延迟
+            try? await Task.sleep(nanoseconds: 700_000_000) // 0.7秒延迟
+            
+            // 强制刷新位置服务以获取真实位置
+            locationAuthorizer.refreshLocation()
             
             // 多次尝试获取真实位置并跳转
             for attempt in 0..<10 {
-                // 强制刷新位置服务
-                locationAuthorizer.refreshLocation()
-                
                 // 等待位置更新
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 
-                // 检查是否有位置并且标志还在
-                if shouldRestoreToRealLocation, let location = locationAuthorizer.currentLocation {
-                    // 跳转到真实位置
+                // 强制刷新位置服务
+                locationAuthorizer.refreshLocation()
+                
+                // 检查是否有真实位置
+                if let location = locationAuthorizer.currentLocation {
+                    // 像搜索选中一样，直接使用 centerMap 跳转到真实位置（带动画）
                     centerMap(on: location.coordinate)
-                    shouldRestoreToRealLocation = false
-                    objectWillChange.send()
-                    return
-                } else if !shouldRestoreToRealLocation {
-                    // 已经被位置监听器处理了
                     return
                 }
             }
-            
-            // 如果多次尝试后仍然没有位置，清除标志
-            shouldRestoreToRealLocation = false
         }
     }
 
