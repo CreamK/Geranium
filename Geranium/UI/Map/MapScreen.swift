@@ -207,14 +207,19 @@ private struct MapControlPanel: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     if viewModel.activeLocation != nil {
-                        Text("已模拟")
+                        Text("模拟中")
                             .font(.headline)
                         Image(systemName: "location.fill")
                             .foregroundColor(.green)
                             .font(.caption)
                     } else {
-                        Text(viewModel.selectedLocation?.label ?? "当前预览")
+                        Text(viewModel.selectedLocation != nil ? "已选择" : "当前预览")
                             .font(.headline)
+                        if viewModel.selectedLocation != nil {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                        }
                     }
                 }
                 if let coordinate = viewModel.selectedLocation?.coordinateDescription {

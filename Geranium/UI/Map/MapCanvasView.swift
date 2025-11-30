@@ -39,19 +39,49 @@ struct MapCanvasView: UIViewRepresentable {
         if !context.coordinator.isUserInteracting {
             uiView.setRegion(region, animated: true)
         }
-        context.coordinator.syncAnnotations(selected: selectedCoordinate, active: activeCoordinate)
-        // 强制刷新标注视图以确保颜色和文字正确更新
-        context.coordinator.refreshAnnotationViews()
+        
+        // 检查坐标是否有变化，如果有变化才更新标注
+        let previousSelected = context.coordinator.previousSelectedCoordinate
+        let previousActive = context.coordinator.previousActiveCoordinate
+        let selectedChanged = !MapCanvasView.areCoordinatesEqual(selectedCoordinate, previousSelected)
+        let activeChanged = !MapCanvasView.areCoordinatesEqual(activeCoordinate, previousActive)
+        
+        // 如果坐标发生变化，更新标注
+        if selectedChanged || activeChanged || context.coordinator.forceUpdate {
+            context.coordinator.previousSelectedCoordinate = selectedCoordinate
+            context.coordinator.previousActiveCoordinate = activeCoordinate
+            context.coordinator.forceUpdate = false
+            context.coordinator.syncAnnotations(selected: selectedCoordinate, active: activeCoordinate)
+            // 强制刷新标注视图以确保颜色和文字正确更新
+            DispatchQueue.main.async {
+                context.coordinator.refreshAnnotationViews()
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
+    }
+    
+    // 辅助函数：比较两个可选坐标是否相等
+    private static func areCoordinatesEqual(_ coord1: CLLocationCoordinate2D?, _ coord2: CLLocationCoordinate2D?) -> Bool {
+        switch (coord1, coord2) {
+        case (nil, nil):
+            return true
+        case (nil, _), (_, nil):
+            return false
+        case (let c1?, let c2?):
+            return abs(c1.latitude - c2.latitude) < 0.00001 && abs(c1.longitude - c2.longitude) < 0.00001
+        }
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: MapCanvasView
         weak var mapView: MKMapView?
         var isUserInteracting = false
+        var previousSelectedCoordinate: CLLocationCoordinate2D?
+        var previousActiveCoordinate: CLLocationCoordinate2D?
+        var forceUpdate = false
 
         init(parent: MapCanvasView) {
             self.parent = parent
@@ -61,10 +91,10 @@ struct MapCanvasView: UIViewRepresentable {
             guard let mapView else { return }
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
 
-            // 优先显示"正在模拟"的标注（绿色）
+            // 优先显示"模拟中"的标注（绿色）
             if let active {
                 let annotation = MKPointAnnotation()
-                annotation.title = "正在模拟"
+                annotation.title = "模拟中"
                 annotation.coordinate = active
                 mapView.addAnnotation(annotation)
                 
@@ -87,9 +117,12 @@ struct MapCanvasView: UIViewRepresentable {
                 mapView.addAnnotation(annotation)
             }
             
-            // 立即刷新标注视图以确保颜色正确显示
+            // 延迟刷新标注视图以确保标注已添加完成并正确显示颜色
             DispatchQueue.main.async { [weak self] in
-                self?.refreshAnnotationViews()
+                // 使用小的延迟确保 MapKit 已完成标注添加
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    self?.refreshAnnotationViews()
+                }
             }
         }
         
@@ -99,7 +132,7 @@ struct MapCanvasView: UIViewRepresentable {
             for annotation in mapView.annotations {
                 guard !(annotation is MKUserLocation) else { continue }
                 if let annotationView = mapView.view(for: annotation) as? MKMarkerAnnotationView {
-                    if let title = annotation.title, title == "正在模拟" {
+                    if let title = annotation.title, title == "模拟中" {
                         annotationView.markerTintColor = UIColor.systemGreen
                     } else {
                         annotationView.markerTintColor = UIColor.systemBlue
@@ -138,8 +171,8 @@ struct MapCanvasView: UIViewRepresentable {
             annotationView?.annotation = annotation
             annotationView?.glyphImage = UIImage(systemName: "mappin")
             
-            // 根据标题设置颜色："正在模拟"为绿色，"已选择"为蓝色
-            if let title = annotation.title, title == "正在模拟" {
+            // 根据标题设置颜色："模拟中"为绿色，"已选择"为蓝色
+            if let title = annotation.title, title == "模拟中" {
                 annotationView?.markerTintColor = UIColor.systemGreen
             } else {
                 annotationView?.markerTintColor = UIColor.systemBlue

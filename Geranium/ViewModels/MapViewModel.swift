@@ -156,7 +156,8 @@ final class MapViewModel: ObservableObject {
         engine.restoreLocation()
         bookmarkStore.markAsLastUsed(nil)
         
-        // 不清除选中的位置，保留"已选择"图标
+        // 清除选中的位置，这样地图上就不会显示"已选择"图标，只显示用户真实位置
+        selectedLocation = nil
         
         // 设置标志，等待位置更新后移动到真实位置
         shouldRestoreToRealLocation = true
