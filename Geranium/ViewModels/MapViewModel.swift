@@ -162,23 +162,37 @@ final class MapViewModel: ObservableObject {
         // 设置标志，等待位置更新后移动到真实位置
         shouldRestoreToRealLocation = true
         
-        // 重新请求位置更新以确保获取最新位置
-        locationAuthorizer.requestAuthorisation(always: true)
+        // 强制刷新位置服务以获取真实位置
+        locationAuthorizer.refreshLocation()
         
-        // 延迟后移动到真实位置，给系统时间停止模拟并恢复真实定位
-        // 位置监听器也会尝试移动，但这里作为备份确保一定会移动
+        // 主动检查并跳转到真实位置
         Task { @MainActor in
-            // 等待位置服务恢复（给系统时间停止模拟并恢复真实定位）
+            // 等待模拟停止（给系统时间恢复真实定位）
             try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒延迟
             
-            // 移动到真实位置（如果位置存在）
-            if let location = locationAuthorizer.currentLocation {
-                centerMap(on: location.coordinate)
-                // 清除标志，表示已经处理了恢复定位
-                shouldRestoreToRealLocation = false
-                // 触发视图更新以确保地图和用户位置图标正确显示
-                objectWillChange.send()
+            // 多次尝试获取真实位置并跳转
+            for attempt in 0..<10 {
+                // 强制刷新位置服务
+                locationAuthorizer.refreshLocation()
+                
+                // 等待位置更新
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+                
+                // 检查是否有位置并且标志还在
+                if shouldRestoreToRealLocation, let location = locationAuthorizer.currentLocation {
+                    // 跳转到真实位置
+                    centerMap(on: location.coordinate)
+                    shouldRestoreToRealLocation = false
+                    objectWillChange.send()
+                    return
+                } else if !shouldRestoreToRealLocation {
+                    // 已经被位置监听器处理了
+                    return
+                }
             }
+            
+            // 如果多次尝试后仍然没有位置，清除标志
+            shouldRestoreToRealLocation = false
         }
     }
 

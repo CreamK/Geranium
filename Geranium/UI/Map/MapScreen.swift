@@ -238,23 +238,23 @@ private struct MapControlPanel: View {
                 }
             }
 
-            // 暂停模拟按钮 - 仅在模拟时显示
-            if viewModel.activeLocation != nil {
-                Button(action: viewModel.stopSpoofing) {
-                    HStack {
-                        Image(systemName: "pause.circle.fill")
-                            .font(.body)
-                        Text("暂停模拟")
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.orange.opacity(0.9))
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            // 暂停模拟按钮 - 始终显示，未模拟时禁用
+            Button(action: viewModel.stopSpoofing) {
+                HStack {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.body)
+                    Text("暂停模拟")
+                        .font(.headline)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(viewModel.activeLocation != nil ? Color.orange.opacity(0.9) : Color.secondary.opacity(0.2))
+                .foregroundColor(viewModel.activeLocation != nil ? .white : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
+            .disabled(viewModel.activeLocation == nil)
             
+            // 当前定位按钮 - 始终显示
             Button(action: viewModel.restoreLocation) {
                 HStack {
                     Image(systemName: "location.circle.fill")
@@ -269,28 +269,28 @@ private struct MapControlPanel: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
 
-            if viewModel.selectedLocation != nil {
-                Button(action: viewModel.quickAddBookmark) {
-                    HStack {
-                        if viewModel.isAddingBookmark {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "bookmark.fill")
-                                .font(.body)
-                        }
-                        Text(viewModel.isAddingBookmark ? "收藏中..." : "快速收藏")
-                            .font(.headline)
+            // 快速收藏按钮 - 始终显示，未选择位置时禁用
+            Button(action: viewModel.quickAddBookmark) {
+                HStack {
+                    if viewModel.isAddingBookmark {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "bookmark.fill")
+                            .font(.body)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(viewModel.isAddingBookmark ? Color.secondary.opacity(0.3) : Color.orange)
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    Text(viewModel.isAddingBookmark ? "收藏中..." : "快速收藏")
+                        .font(.headline)
                 }
-                .disabled(viewModel.isAddingBookmark)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(viewModel.isAddingBookmark ? Color.secondary.opacity(0.3) : 
+                           (viewModel.selectedLocation != nil ? Color.orange : Color.secondary.opacity(0.2)))
+                .foregroundColor(viewModel.selectedLocation != nil ? .white : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
+            .disabled(viewModel.isAddingBookmark || viewModel.selectedLocation == nil)
 
         }
         .padding()

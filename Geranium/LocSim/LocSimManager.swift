@@ -68,6 +68,14 @@ class LocationModel: NSObject, ObservableObject {
         }
         locationManager.startUpdatingLocation()
     }
+    
+    /// 强制刷新位置更新 - 停止并重新启动位置服务以获取最新位置
+    public func refreshLocation() {
+        locationManager.stopUpdatingLocation()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.locationManager.startUpdatingLocation()
+        }
+    }
 }
 
 extension LocationModel: CLLocationManagerDelegate {
