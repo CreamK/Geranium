@@ -238,11 +238,28 @@ private struct MapControlPanel: View {
                 }
             }
 
+            // 暂停模拟按钮 - 仅在模拟时显示
+            if viewModel.activeLocation != nil {
+                Button(action: viewModel.stopSpoofing) {
+                    HStack {
+                        Image(systemName: "pause.circle.fill")
+                            .font(.body)
+                        Text("暂停模拟")
+                            .font(.headline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.opacity(0.9))
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+            }
+            
             Button(action: viewModel.restoreLocation) {
                 HStack {
                     Image(systemName: "location.circle.fill")
                         .font(.body)
-                    Text("恢复定位")
+                    Text("当前定位")
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
