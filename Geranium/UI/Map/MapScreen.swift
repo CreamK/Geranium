@@ -348,37 +348,36 @@ private struct SearchHistoryList: View {
         ScrollView {
             VStack(spacing: 6) {
                 ForEach(history) { item in
-                    HStack(spacing: 10) {
-                        Button(action: { onSelect(item) }) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "clock")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.query)
-                                        .font(.subheadline)
-                                        .foregroundColor(.primary)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text(String(format: "%.5f, %.5f", item.coordinate.latitude, item.coordinate.longitude))
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.leading, 12)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        Button(action: { onDelete(item) }) {
-                            Image(systemName: "xmark")
-                                .font(.caption2)
+                    Button(action: { onSelect(item) }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "clock")
+                                .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(6)
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.query)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(String(format: "%.5f, %.5f", item.coordinate.latitude, item.coordinate.longitude))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: { onDelete(item) }) {
+                                Image(systemName: "xmark")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .padding(6)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 8)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
                     }
+                    .buttonStyle(.plain)
                     .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
             }
