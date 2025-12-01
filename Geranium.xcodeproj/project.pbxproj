@@ -26,6 +26,8 @@
 		7002B0DAE1CB4BB7852C6BF6 /* LocationSpoofingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50E374681994FAF9F0CDC27 /* LocationSpoofingEngine.swift */; };
 		991F25A3C174462C9278E41B /* Bookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBD846665F7420EA427A2D2 /* Bookmark.swift */; };
 		F59FE641C91349D99152FA8F /* BookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C8419330A04C1084B5A7FB /* BookmarkStore.swift */; };
+		C6C5D530AFF947BAB214F24F /* SearchHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C5D530AFF947BAB214F24F010F09BB /* SearchHistory.swift */; };
+		39C1C5C2D56B4F56A10ACDDB /* SearchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C1C5C2D56B4F56A10ACDDBBAD8FDFA /* SearchHistoryStore.swift */; };
 		7D89B5874C494E589F3B01EF /* LocSimSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F1C9E472EC4E369A368682 /* LocSimSettings.swift */; };
 		7460C665F5FE440699E2380C /* LocSimAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2435A5EFC27E4071BFD5B8C9 /* LocSimAppModel.swift */; };
 		6C64D385951749AC917E2FF6 /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4A4BD6530C437EA975C055 /* MapViewModel.swift */; };
@@ -109,6 +111,8 @@
 		C50E374681994FAF9F0CDC27 /* LocationSpoofingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSpoofingEngine.swift; sourceTree = "<group>"; };
 		2BBD846665F7420EA427A2D2 /* Bookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bookmark.swift; sourceTree = "<group>"; };
 		15C8419330A04C1084B5A7FB /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
+		C6C5D530AFF947BAB214F24F010F09BB /* SearchHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHistory.swift; sourceTree = "<group>"; };
+		39C1C5C2D56B4F56A10ACDDBBAD8FDFA /* SearchHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHistoryStore.swift; sourceTree = "<group>"; };
 		36F1C9E472EC4E369A368682 /* LocSimSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocSimSettings.swift; sourceTree = "<group>"; };
 		2435A5EFC27E4071BFD5B8C9 /* LocSimAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocSimAppModel.swift; sourceTree = "<group>"; };
 		8C4A4BD6530C437EA975C055 /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
@@ -280,6 +284,7 @@
 			isa = PBXGroup;
 			children = (
 				39C16911496D428C95464AF0 /* Bookmarks */,
+				A1B2C3D4E5F6478899001122 /* SearchHistory */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -291,6 +296,15 @@
 				15C8419330A04C1084B5A7FB /* BookmarkStore.swift */,
 			);
 			path = Bookmarks;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6478899001122 /* SearchHistory */ = {
+			isa = PBXGroup;
+			children = (
+				C6C5D530AFF947BAB214F24F010F09BB /* SearchHistory.swift */,
+				39C1C5C2D56B4F56A10ACDDBBAD8FDFA /* SearchHistoryStore.swift */,
+			);
+			path = SearchHistory;
 			sourceTree = "<group>";
 		};
 		D72758EF572141B7A3664B02 /* Support */ = {
@@ -570,6 +584,8 @@
 				7002B0DAE1CB4BB7852C6BF6 /* LocationSpoofingEngine.swift in Sources */,
 				991F25A3C174462C9278E41B /* Bookmark.swift in Sources */,
 				F59FE641C91349D99152FA8F /* BookmarkStore.swift in Sources */,
+				C6C5D530AFF947BAB214F24F /* SearchHistory.swift in Sources */,
+				39C1C5C2D56B4F56A10ACDDB /* SearchHistoryStore.swift in Sources */,
 				7D89B5874C494E589F3B01EF /* LocSimSettings.swift in Sources */,
 				7460C665F5FE440699E2380C /* LocSimAppModel.swift in Sources */,
 				6C64D385951749AC917E2FF6 /* MapViewModel.swift in Sources */,
