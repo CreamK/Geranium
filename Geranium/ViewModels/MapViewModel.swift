@@ -69,11 +69,10 @@ final class MapViewModel: ObservableObject {
         self.bookmarkStore = bookmarkStore
         self.searchHistoryStore = searchHistoryStore
 
-        // 尝试使用用户当前位置作为初始中心，如果没有则使用北京作为默认
+        // 始终使用用户当前位置作为初始中心，如果没有则使用北京作为默认
         let defaultCenter: CLLocationCoordinate2D
         if let userLocation = locationAuthorizer.currentLocation {
             defaultCenter = userLocation.coordinate
-            hasCenteredOnUser = true
         } else {
             defaultCenter = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
         }
@@ -106,7 +105,7 @@ final class MapViewModel: ObservableObject {
                         objectWillChange.send()
                     }
                 } else if !hasCenteredOnUser, let location = location {
-                    // 首次启动：移动到用户位置
+                    // 首次获取位置后：移动到用户位置
                     hasCenteredOnUser = true
                     centerMap(on: location.coordinate)
                 }
@@ -120,8 +119,20 @@ final class MapViewModel: ObservableObject {
     
     func centerOnUserLocation() {
         // 每次进入地图界面时，跳转到用户当前位置
+        // 强制刷新位置以获取最新的实际位置
+        locationAuthorizer.refreshLocation()
+        
+        // 立即尝试获取位置
         if let location = locationAuthorizer.currentLocation {
             centerMap(on: location.coordinate)
+        } else {
+            // 如果没有立即获取到，等待一下再尝试
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+                if let location = locationAuthorizer.currentLocation {
+                    centerMap(on: location.coordinate)
+                }
+            }
         }
     }
     
