@@ -159,23 +159,30 @@ final class MapViewModel: ObservableObject {
     }
 
     func restoreLocation() {
-        // 恢复真实定位：停止模拟
-        engine.restoreLocation()
+        // 先停止当前的模拟
+        engine.stopSpoofing()
         bookmarkStore.markAsLastUsed(nil)
         
-        // 异步获取真实位置并跳转
+        // 异步获取真实位置并跳转、模拟
         Task { @MainActor in
             // 先尝试立即获取位置
             if let location = locationAuthorizer.currentLocation {
+                // 创建当前位置的 LocationPoint
+                let coordinate = location.coordinate
+                let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
+                
+                // 设置为选中位置
+                selectedLocation = locationPoint
+                
                 // 立即跳转到真实位置
-                centerMap(on: location.coordinate)
-                // 延迟清除选中位置，确保地图已经跳转
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-                selectedLocation = nil
+                centerMap(on: coordinate)
+                
+                // 开始模拟当前位置
+                startSpoofing(point: locationPoint, bookmark: nil)
                 return
             }
             
-            // 如果没有位置，等待模拟停止
+            // 如果没有位置，等待位置服务恢复
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒延迟
             
             // 强制刷新位置服务
@@ -193,17 +200,21 @@ final class MapViewModel: ObservableObject {
                 
                 // 检查是否有真实位置
                 if let location = locationAuthorizer.currentLocation {
+                    // 创建当前位置的 LocationPoint
+                    let coordinate = location.coordinate
+                    let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
+                    
+                    // 设置为选中位置
+                    selectedLocation = locationPoint
+                    
                     // 跳转到真实位置（带动画）
-                    centerMap(on: location.coordinate)
-                    // 延迟清除选中位置，确保地图已经跳转
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-                    selectedLocation = nil
+                    centerMap(on: coordinate)
+                    
+                    // 开始模拟当前位置
+                    startSpoofing(point: locationPoint, bookmark: nil)
                     return
                 }
             }
-            
-            // 如果最终还是没有获取到位置，清除选中位置
-            selectedLocation = nil
         }
     }
 
@@ -326,10 +337,18 @@ final class MapViewModel: ObservableObject {
     func selectHistoryItem(_ item: SearchHistoryItem) {
         let coordinate = item.locationCoordinate
         let locationPoint = LocationPoint(coordinate: coordinate, label: item.query, note: nil)
+        
+        // 先设置选中位置
         selectedLocation = locationPoint
+        
+        // 立即跳转到历史记录的位置（带动画）
         centerMap(on: coordinate)
+        
+        // 关闭历史记录和搜索结果显示
         showSearchHistory = false
         showSearchResults = false
+        
+        // 更新搜索框文字
         searchText = item.query
         
         // 自动开始模拟选中的位置
