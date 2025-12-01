@@ -39,6 +39,20 @@ struct SettingsScreen: View {
                 }
                 .padding(.vertical, 6)
             }
+            
+            Section(header: Text("搜索历史")) {
+                Button(action: {
+                    viewModel.clearSearchHistory()
+                }) {
+                    HStack {
+                        Text("清除搜索历史")
+                            .foregroundColor(.red)
+                        Spacer()
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
 
             Section(header: Text("关于")) {
                 HStack {

@@ -15,6 +15,8 @@ final class LocSimSettings: ObservableObject {
 
     let autoCenterOnSelection: Bool = true
     let dampedAnimations: Bool = true
+    
+    weak var searchHistoryStore: SearchHistoryStore?
 
     private enum Keys {
         static let defaultZoomLevel = "settings.defaultZoomLevel"
@@ -29,5 +31,9 @@ final class LocSimSettings: ObservableObject {
 
     var mapSpanDegrees: Double {
         max(0.01, min(defaultZoomLevel / 1000, 5))
+    }
+    
+    func clearSearchHistory() {
+        searchHistoryStore?.clearHistory()
     }
 }

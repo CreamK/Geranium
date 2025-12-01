@@ -21,4 +21,8 @@ final class SettingsViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    
+    func clearSearchHistory() {
+        settings.clearSearchHistory()
+    }
 }

@@ -27,6 +27,7 @@ final class MapViewModel: ObservableObject {
     @Published var bookmarkSuccessMessage: String = ""
     @Published var isAddingBookmark: Bool = false
     @Published var mapType: MKMapType = .standard
+    @Published var showSearchHistory: Bool = false
 
     var statusInfo: MapStatus {
         if let active = engine.session.activePoint {
@@ -51,16 +52,22 @@ final class MapViewModel: ObservableObject {
     private let engine: LocationSpoofingEngine
     private let settings: LocSimSettings
     private unowned let bookmarkStore: BookmarkStore
+    private let searchHistoryStore: SearchHistoryStore
     private var cancellables = Set<AnyCancellable>()
     private let locationAuthorizer = LocationModel()
     private var hasCenteredOnUser = false
     private var shouldRestoreToRealLocation = false
     private var searchTask: Task<Void, Never>?
+    
+    var searchHistory: [SearchHistoryItem] {
+        searchHistoryStore.history
+    }
 
-    init(engine: LocationSpoofingEngine, settings: LocSimSettings, bookmarkStore: BookmarkStore) {
+    init(engine: LocationSpoofingEngine, settings: LocSimSettings, bookmarkStore: BookmarkStore, searchHistoryStore: SearchHistoryStore) {
         self.engine = engine
         self.settings = settings
         self.bookmarkStore = bookmarkStore
+        self.searchHistoryStore = searchHistoryStore
 
         let defaultCenter = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
         self.mapRegion = MKCoordinateRegion(center: defaultCenter,
@@ -290,19 +297,48 @@ final class MapViewModel: ObservableObject {
         selectedLocation = locationPoint
         centerMap(on: coordinate)
         showSearchResults = false
+        showSearchHistory = false
         searchResults = []
         searchText = result.title
         
+        // 保存到搜索历史
+        searchHistoryStore.addSearchItem(query: result.title, coordinate: coordinate)
+        
         // 自动开始模拟选中的位置
         startSpoofing(point: locationPoint, bookmark: nil)
+    }
+    
+    func selectHistoryItem(_ item: SearchHistoryItem) {
+        let coordinate = item.locationCoordinate
+        let locationPoint = LocationPoint(coordinate: coordinate, label: item.query, note: nil)
+        selectedLocation = locationPoint
+        centerMap(on: coordinate)
+        showSearchHistory = false
+        showSearchResults = false
+        searchText = item.query
+        
+        // 自动开始模拟选中的位置
+        startSpoofing(point: locationPoint, bookmark: nil)
+    }
+    
+    func deleteHistoryItem(_ item: SearchHistoryItem) {
+        searchHistoryStore.deleteItem(item)
     }
 
     func clearSearch() {
         searchText = ""
         searchResults = []
         showSearchResults = false
+        showSearchHistory = false
         isSearching = false
         searchTask?.cancel()
+    }
+    
+    func toggleSearchHistory() {
+        showSearchHistory.toggle()
+        if showSearchHistory {
+            showSearchResults = false
+        }
     }
 
     func quickAddBookmark() {

@@ -46,6 +46,16 @@ struct MapScreen: View {
                         viewModel.selectSearchResult(result)
                     })
                         .padding(.horizontal)
+                } else if viewModel.showSearchHistory && !viewModel.searchHistory.isEmpty {
+                    SearchHistoryList(history: viewModel.searchHistory, 
+                                    onSelect: { item in
+                                        dismissKeyboard()
+                                        viewModel.selectHistoryItem(item)
+                                    },
+                                    onDelete: { item in
+                                        viewModel.deleteHistoryItem(item)
+                                    })
+                        .padding(.horizontal)
                 }
 
                 Spacer()
@@ -119,10 +129,20 @@ struct MapScreen: View {
             .disableAutocorrection(true)
             .focused($searchFocused)
             .submitLabel(.search)
+            .onChange(of: searchFocused) { isFocused in
+                if isFocused && viewModel.searchText.isEmpty && !viewModel.searchHistory.isEmpty {
+                    viewModel.showSearchHistory = true
+                }
+            }
 
             if !viewModel.searchText.isEmpty {
                 Button(action: viewModel.clearSearch) {
                     Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+            } else if !viewModel.searchHistory.isEmpty {
+                Button(action: viewModel.toggleSearchHistory) {
+                    Image(systemName: "clock")
                         .foregroundColor(.secondary)
                 }
             }
@@ -326,6 +346,55 @@ private struct SearchResultList: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(.systemBackground).opacity(0.9), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                }
+            }
+        }
+        .frame(maxHeight: 240)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct SearchHistoryList: View {
+    var history: [SearchHistoryItem]
+    var onSelect: (SearchHistoryItem) -> Void
+    var onDelete: (SearchHistoryItem) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                ForEach(history) { item in
+                    HStack(spacing: 12) {
+                        Button(action: { onSelect(item) }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "clock")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.query)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(String(format: "%.5f, %.5f", item.coordinate.latitude, item.coordinate.longitude))
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.leading, 16)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button(action: { onDelete(item) }) {
+                            Image(systemName: "xmark")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(8)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 12)
+                    }
+                    .background(Color(.systemBackground).opacity(0.9), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
