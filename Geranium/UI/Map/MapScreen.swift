@@ -104,6 +104,7 @@ struct MapScreen: View {
         }
         .onAppear {
             viewModel.requestLocationPermission()
+            viewModel.centerOnUserLocation()
         }
     }
 
@@ -258,6 +259,21 @@ private struct MapControlPanel: View {
                 }
             }
 
+            // 当前定位按钮 - 始终显示
+            Button(action: viewModel.simulateCurrentLocation) {
+                HStack {
+                    Image(systemName: "location.circle.fill")
+                        .font(.body)
+                    Text("当前定位")
+                        .font(.headline)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.blue.opacity(0.9))
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            
             // 暂停模拟按钮 - 始终显示，未模拟时禁用
             Button(action: viewModel.stopSpoofing) {
                 HStack {

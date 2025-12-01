@@ -117,6 +117,65 @@ final class MapViewModel: ObservableObject {
     func requestLocationPermission() {
         locationAuthorizer.requestAuthorisation(always: true)
     }
+    
+    func centerOnUserLocation() {
+        // 每次进入地图界面时，跳转到用户当前位置
+        if let location = locationAuthorizer.currentLocation {
+            centerMap(on: location.coordinate)
+        }
+    }
+    
+    func simulateCurrentLocation() {
+        // 获取当前实际物理位置并模拟
+        Task { @MainActor in
+            // 强制刷新位置服务以获取最新位置
+            locationAuthorizer.refreshLocation()
+            
+            // 等待位置更新
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+            
+            // 尝试获取当前位置
+            if let location = locationAuthorizer.currentLocation {
+                // 创建当前位置的 LocationPoint
+                let coordinate = location.coordinate
+                let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
+                
+                // 设置为选中位置
+                selectedLocation = locationPoint
+                
+                // 跳转到当前位置
+                centerMap(on: coordinate)
+                
+                // 开始模拟当前位置
+                startSpoofing(point: locationPoint, bookmark: nil)
+                return
+            }
+            
+            // 如果没有立即获取到位置，多次尝试
+            for attempt in 0..<8 {
+                try? await Task.sleep(nanoseconds: 250_000_000) // 0.25秒
+                
+                // 强制刷新位置服务
+                if attempt % 2 == 0 {
+                    locationAuthorizer.refreshLocation()
+                }
+                
+                if let location = locationAuthorizer.currentLocation {
+                    let coordinate = location.coordinate
+                    let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
+                    
+                    selectedLocation = locationPoint
+                    centerMap(on: coordinate)
+                    startSpoofing(point: locationPoint, bookmark: nil)
+                    return
+                }
+            }
+            
+            // 如果最终还是获取不到位置，显示错误
+            errorMessage = "无法获取当前位置，请检查定位权限"
+            showErrorAlert = true
+        }
+    }
 
     func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
         let locationPoint = LocationPoint(coordinate: coordinate, label: nil)
