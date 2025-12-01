@@ -273,21 +273,6 @@ private struct MapControlPanel: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .disabled(viewModel.activeLocation == nil)
-            
-            // 当前定位按钮 - 始终显示
-            Button(action: viewModel.restoreLocation) {
-                HStack {
-                    Image(systemName: "location.circle.fill")
-                        .font(.body)
-                    Text("当前定位")
-                        .font(.headline)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.secondary.opacity(0.2))
-                .foregroundColor(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
 
             // 快速收藏按钮 - 始终显示，未选择位置时禁用
             Button(action: viewModel.quickAddBookmark) {

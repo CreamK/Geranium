@@ -69,7 +69,15 @@ final class MapViewModel: ObservableObject {
         self.bookmarkStore = bookmarkStore
         self.searchHistoryStore = searchHistoryStore
 
-        let defaultCenter = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
+        // 尝试使用用户当前位置作为初始中心，如果没有则使用北京作为默认
+        let defaultCenter: CLLocationCoordinate2D
+        if let userLocation = locationAuthorizer.currentLocation {
+            defaultCenter = userLocation.coordinate
+            hasCenteredOnUser = true
+        } else {
+            defaultCenter = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
+        }
+        
         self.mapRegion = MKCoordinateRegion(center: defaultCenter,
                                             span: MKCoordinateSpan(latitudeDelta: settings.mapSpanDegrees,
                                                                    longitudeDelta: settings.mapSpanDegrees))
