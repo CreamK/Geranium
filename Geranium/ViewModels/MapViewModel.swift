@@ -163,32 +163,47 @@ final class MapViewModel: ObservableObject {
         engine.restoreLocation()
         bookmarkStore.markAsLastUsed(nil)
         
-        // 清除选中的位置，这样地图上就不会显示"已选择"图标，只显示用户真实位置
-        selectedLocation = nil
-        
-        // 像搜索选中一样，直接获取真实位置并跳转
+        // 异步获取真实位置并跳转
         Task { @MainActor in
-            // 等待模拟停止（给系统时间恢复真实定位）
-            try? await Task.sleep(nanoseconds: 700_000_000) // 0.7秒延迟
+            // 先尝试立即获取位置
+            if let location = locationAuthorizer.currentLocation {
+                // 立即跳转到真实位置
+                centerMap(on: location.coordinate)
+                // 延迟清除选中位置，确保地图已经跳转
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+                selectedLocation = nil
+                return
+            }
             
-            // 强制刷新位置服务以获取真实位置
+            // 如果没有位置，等待模拟停止
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒延迟
+            
+            // 强制刷新位置服务
             locationAuthorizer.refreshLocation()
             
             // 多次尝试获取真实位置并跳转
             for attempt in 0..<10 {
                 // 等待位置更新
-                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
                 
                 // 强制刷新位置服务
-                locationAuthorizer.refreshLocation()
+                if attempt % 2 == 0 {
+                    locationAuthorizer.refreshLocation()
+                }
                 
                 // 检查是否有真实位置
                 if let location = locationAuthorizer.currentLocation {
-                    // 像搜索选中一样，直接使用 centerMap 跳转到真实位置（带动画）
+                    // 跳转到真实位置（带动画）
                     centerMap(on: location.coordinate)
+                    // 延迟清除选中位置，确保地图已经跳转
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+                    selectedLocation = nil
                     return
                 }
             }
+            
+            // 如果最终还是没有获取到位置，清除选中位置
+            selectedLocation = nil
         }
     }
 
