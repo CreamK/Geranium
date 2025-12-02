@@ -137,34 +137,30 @@ final class MapViewModel: ObservableObject {
     }
     
     func simulateCurrentLocation() {
-        // 获取当前实际物理位置并模拟
+        // 获取当前实际物理位置，跳转地图并显示标注（类似搜索结果）
         Task { @MainActor in
-            // 强制刷新位置服务以获取最新位置
+            // 先停止当前模拟，以便获取真实位置
+            engine.stopSpoofing()
+            bookmarkStore.markAsLastUsed(nil)
+            
+            // 等待一小段时间让位置服务恢复
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+            
+            // 强制刷新位置服务以获取最新的真实位置
             locationAuthorizer.refreshLocation()
             
             // 等待位置更新
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+            try? await Task.sleep(nanoseconds: 400_000_000) // 0.4秒
             
             // 尝试获取当前位置
             if let location = locationAuthorizer.currentLocation {
-                // 创建当前位置的 LocationPoint
-                let coordinate = location.coordinate
-                let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
-                
-                // 设置为选中位置
-                selectedLocation = locationPoint
-                
-                // 跳转到当前位置
-                centerMap(on: coordinate)
-                
-                // 开始模拟当前位置
-                startSpoofing(point: locationPoint, bookmark: nil)
+                await handleRealLocationFound(location)
                 return
             }
             
             // 如果没有立即获取到位置，多次尝试
-            for attempt in 0..<8 {
-                try? await Task.sleep(nanoseconds: 250_000_000) // 0.25秒
+            for attempt in 0..<10 {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 
                 // 强制刷新位置服务
                 if attempt % 2 == 0 {
@@ -172,12 +168,7 @@ final class MapViewModel: ObservableObject {
                 }
                 
                 if let location = locationAuthorizer.currentLocation {
-                    let coordinate = location.coordinate
-                    let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
-                    
-                    selectedLocation = locationPoint
-                    centerMap(on: coordinate)
-                    startSpoofing(point: locationPoint, bookmark: nil)
+                    await handleRealLocationFound(location)
                     return
                 }
             }
@@ -186,6 +177,63 @@ final class MapViewModel: ObservableObject {
             errorMessage = "无法获取当前位置，请检查定位权限"
             showErrorAlert = true
         }
+    }
+    
+    /// 处理找到真实位置后的逻辑：跳转地图、显示标注、开始模拟
+    private func handleRealLocationFound(_ location: CLLocation) async {
+        let coordinate = location.coordinate
+        
+        // 使用反向地理编码获取地名（类似搜索结果）
+        let geocoder = CLGeocoder()
+        var locationName = "当前位置"
+        var locationNote: String? = nil
+        
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            if let placemark = placemarks.first {
+                // 尝试获取有意义的地名
+                if let name = placemark.name, !name.isEmpty {
+                    locationName = name
+                } else if let thoroughfare = placemark.thoroughfare, !thoroughfare.isEmpty {
+                    locationName = thoroughfare
+                } else if let locality = placemark.locality, !locality.isEmpty {
+                    locationName = locality
+                }
+                
+                // 构建详细地址作为备注
+                var addressParts: [String] = []
+                if let subLocality = placemark.subLocality { addressParts.append(subLocality) }
+                if let locality = placemark.locality { addressParts.append(locality) }
+                if let administrativeArea = placemark.administrativeArea { addressParts.append(administrativeArea) }
+                if let country = placemark.country { addressParts.append(country) }
+                if !addressParts.isEmpty {
+                    locationNote = addressParts.joined(separator: ", ")
+                }
+            }
+        } catch {
+            // 反向地理编码失败时使用默认名称
+        }
+        
+        // 创建位置点（类似搜索结果）
+        let locationPoint = LocationPoint(coordinate: coordinate, label: locationName, note: locationNote)
+        
+        // 设置为选中位置
+        selectedLocation = locationPoint
+        
+        // 跳转到当前位置（带动画，类似搜索结果）
+        centerMap(on: coordinate)
+        
+        // 清除搜索相关状态
+        showSearchResults = false
+        showSearchHistory = false
+        searchResults = []
+        searchText = locationName
+        
+        // 保存到搜索历史
+        searchHistoryStore.addSearchItem(query: locationName, coordinate: coordinate)
+        
+        // 开始模拟当前位置
+        startSpoofing(point: locationPoint, bookmark: nil)
     }
 
     func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
