@@ -222,17 +222,6 @@ final class MapViewModel: ObservableObject {
         // 创建位置点（类似搜索结果）
         let locationPoint = LocationPoint(coordinate: coordinate, label: locationName, note: locationNote)
         
-        // 设置为选中位置
-        selectedLocation = locationPoint
-        
-        // 强制更新地图区域 - 直接设置 mapRegion 以确保跳转
-        let newRegion = MKCoordinateRegion(center: coordinate, span: mapRegion.span)
-        mapRegion = newRegion
-        lastMapCenter = coordinate
-        
-        // 触发视图更新
-        objectWillChange.send()
-        
         // 清除搜索相关状态
         showSearchResults = false
         showSearchHistory = false
@@ -241,6 +230,30 @@ final class MapViewModel: ObservableObject {
         
         // 保存到搜索历史
         searchHistoryStore.addSearchItem(query: locationName, coordinate: coordinate)
+        
+        // 先设置选中位置（这会触发标注更新）
+        selectedLocation = locationPoint
+        
+        // 使用较小的延迟确保 selectedLocation 更新已经生效
+        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+        
+        // 强制更新地图区域 - 使用新的 span 确保变化被检测到
+        let currentSpan = mapRegion.span
+        let newRegion = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(
+                latitudeDelta: currentSpan.latitudeDelta,
+                longitudeDelta: currentSpan.longitudeDelta
+            )
+        )
+        mapRegion = newRegion
+        lastMapCenter = coordinate
+        
+        // 触发视图更新
+        objectWillChange.send()
+        
+        // 再等待一小段时间让地图跳转完成
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         
         // 开始模拟当前位置
         startSpoofing(point: locationPoint, bookmark: nil)
