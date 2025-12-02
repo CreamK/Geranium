@@ -143,14 +143,19 @@ final class MapViewModel: ObservableObject {
             engine.stopSpoofing()
             bookmarkStore.markAsLastUsed(nil)
             
-            // 等待一小段时间让位置服务恢复
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+            // 等待更长时间让位置服务完全恢复
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
             
             // 强制刷新位置服务以获取最新的真实位置
             locationAuthorizer.refreshLocation()
             
             // 等待位置更新
-            try? await Task.sleep(nanoseconds: 400_000_000) // 0.4秒
+            try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒
+            
+            // 再次刷新以确保获取最新位置
+            locationAuthorizer.refreshLocation()
+            
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
             
             // 尝试获取当前位置
             if let location = locationAuthorizer.currentLocation {
@@ -159,13 +164,13 @@ final class MapViewModel: ObservableObject {
             }
             
             // 如果没有立即获取到位置，多次尝试
-            for attempt in 0..<10 {
-                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+            for attempt in 0..<15 {
+                try? await Task.sleep(nanoseconds: 400_000_000) // 0.4秒
                 
-                // 强制刷新位置服务
-                if attempt % 2 == 0 {
-                    locationAuthorizer.refreshLocation()
-                }
+                // 每次都刷新位置服务
+                locationAuthorizer.refreshLocation()
+                
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
                 
                 if let location = locationAuthorizer.currentLocation {
                     await handleRealLocationFound(location)
@@ -220,8 +225,13 @@ final class MapViewModel: ObservableObject {
         // 设置为选中位置
         selectedLocation = locationPoint
         
-        // 跳转到当前位置（带动画，类似搜索结果）
-        centerMap(on: coordinate)
+        // 强制更新地图区域 - 直接设置 mapRegion 以确保跳转
+        let newRegion = MKCoordinateRegion(center: coordinate, span: mapRegion.span)
+        mapRegion = newRegion
+        lastMapCenter = coordinate
+        
+        // 触发视图更新
+        objectWillChange.send()
         
         // 清除搜索相关状态
         showSearchResults = false

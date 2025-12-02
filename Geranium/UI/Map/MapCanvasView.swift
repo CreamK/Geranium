@@ -36,7 +36,18 @@ struct MapCanvasView: UIViewRepresentable {
         if uiView.mapType != mapType {
             uiView.mapType = mapType
         }
-        if !context.coordinator.isUserInteracting {
+        
+        // 检查区域是否有显著变化（程序化跳转）
+        let currentCenter = uiView.region.center
+        let targetCenter = region.center
+        let centerChanged = abs(currentCenter.latitude - targetCenter.latitude) > 0.0001 ||
+                           abs(currentCenter.longitude - targetCenter.longitude) > 0.0001
+        
+        // 如果区域有显著变化，强制更新（即使用户正在交互）
+        if centerChanged {
+            context.coordinator.isUserInteracting = false
+            uiView.setRegion(region, animated: true)
+        } else if !context.coordinator.isUserInteracting {
             uiView.setRegion(region, animated: true)
         }
         
