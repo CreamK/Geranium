@@ -141,14 +141,14 @@ final class MapViewModel: ObservableObject {
     }
     
     func simulateCurrentLocation() {
-        performCurrentLocationAction(startSpoofing: true)
+        performCurrentLocationAction(shouldStartSpoofing: true)
     }
 
     func pauseSpoofingAndCenterOnUserLocation() {
-        performCurrentLocationAction(startSpoofing: false)
+        performCurrentLocationAction(shouldStartSpoofing: false)
     }
 
-    private func performCurrentLocationAction(startSpoofing: Bool) {
+    private func performCurrentLocationAction(shouldStartSpoofing: Bool) {
         currentLocationActionTask?.cancel()
         currentLocationActionTask = Task { @MainActor in
             guard !isResolvingCurrentLocation else { return }
@@ -171,7 +171,7 @@ final class MapViewModel: ObservableObject {
             if let location = locationAuthorizer.currentLocation,
                shouldUseRestoredLocation(location, after: stopTimestamp, requireFresh: wasSpoofing)
             {
-                await handleRealLocationFound(location, startSpoofing: startSpoofing)
+                await handleRealLocationFound(location, shouldStartSpoofing: shouldStartSpoofing)
                 return
             }
 
@@ -180,7 +180,7 @@ final class MapViewModel: ObservableObject {
                 if let location = locationAuthorizer.currentLocation,
                    shouldUseRestoredLocation(location, after: stopTimestamp, requireFresh: wasSpoofing)
                 {
-                    await handleRealLocationFound(location, startSpoofing: startSpoofing)
+                    await handleRealLocationFound(location, shouldStartSpoofing: shouldStartSpoofing)
                     return
                 }
                 try? await Task.sleep(nanoseconds: pollInterval)
@@ -192,7 +192,7 @@ final class MapViewModel: ObservableObject {
 
             // 兜底：尽量使用当前可用的位置（非模拟优先），避免一直卡在“定位中”
             if let location = locationAuthorizer.currentLocation, isNonSimulatedLocation(location) {
-                await handleRealLocationFound(location, startSpoofing: startSpoofing)
+                await handleRealLocationFound(location, shouldStartSpoofing: shouldStartSpoofing)
                 return
             }
 
@@ -218,7 +218,7 @@ final class MapViewModel: ObservableObject {
     }
     
     /// 处理找到真实位置后的逻辑：跳转地图、显示标注、开始模拟
-    private func handleRealLocationFound(_ location: CLLocation, startSpoofing: Bool) async {
+    private func handleRealLocationFound(_ location: CLLocation, shouldStartSpoofing: Bool) async {
         let displayCoordinate = CoordTransform.wgs84ToGcj02(location.coordinate)
         
         // 先快速跳转：不要阻塞在反向地理编码上
@@ -243,7 +243,7 @@ final class MapViewModel: ObservableObject {
         // 跳转到显示用坐标
         centerMap(on: displayCoordinate)
 
-        if startSpoofing {
+        if shouldStartSpoofing {
             // 开始模拟（使用真实的 WGS-84 坐标，避免重复/错误的坐标转换）
             let physicalPoint = LocationPoint(coordinate: location.coordinate,
                                               altitude: location.altitude,
