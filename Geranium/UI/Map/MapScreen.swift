@@ -135,7 +135,7 @@ struct MapScreen: View {
             }
 
             if !viewModel.searchText.isEmpty {
-                Button(action: viewModel.clearSearch) {
+                Button(action: { viewModel.clearSearch() }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }
