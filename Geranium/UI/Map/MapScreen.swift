@@ -421,23 +421,36 @@ private struct SearchHistoryList: View {
             ScrollView {
                 VStack(spacing: 6) {
                     ForEach(history) { item in
-                        HStack(spacing: 10) {
-                            Image(systemName: "clock")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(item.query)
-                                    .font(.subheadline)
-                                    .foregroundColor(.primary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(String(format: "%.5f, %.5f", item.coordinate.latitude, item.coordinate.longitude))
-                                    .font(.caption2)
+                        Button(action: { onSelect(item) }) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "clock")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
+                                
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.query)
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(String(format: "%.5f, %.5f", item.coordinate.latitude, item.coordinate.longitude))
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                // Reserve tap area for the trailing delete button (added as an overlay).
+                                Color.clear
+                                    .frame(width: 28, height: 28)
                             }
-                            
-                            Spacer()
-                            
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .contentShape(Rectangle())
+                        .overlay(alignment: .trailing) {
                             Button(action: { onDelete(item) }) {
                                 Image(systemName: "xmark")
                                     .font(.caption2)
@@ -445,14 +458,7 @@ private struct SearchHistoryList: View {
                                     .padding(6)
                             }
                             .buttonStyle(.plain)
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            onSelect(item)
+                            .padding(.trailing, 6)
                         }
                     }
                 }
