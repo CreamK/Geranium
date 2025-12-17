@@ -21,6 +21,8 @@ struct MapCanvasView: UIViewRepresentable {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
+        mapView.showsCompass = true
+        mapView.showsScale = true
         mapView.pointOfInterestFilter = .includingAll
         mapView.mapType = mapType
         mapView.setRegion(region, animated: false)

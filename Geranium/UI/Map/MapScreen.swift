@@ -54,6 +54,9 @@ struct MapScreen: View {
                                     },
                                     onDelete: { item in
                                         viewModel.deleteHistoryItem(item)
+                                    },
+                                    onClearAll: {
+                                        viewModel.clearSearchHistory()
                                     })
                         .padding(.horizontal)
                 }
@@ -144,6 +147,16 @@ struct MapScreen: View {
                     Image(systemName: "clock")
                         .foregroundColor(.secondary)
                 }
+            }
+
+            if searchFocused {
+                Button("取消") {
+                    dismissKeyboard()
+                    viewModel.dismissSearchOverlay()
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
             }
         }
         .padding(.horizontal, 14)
@@ -242,9 +255,23 @@ private struct MapControlPanel: View {
                     }
                 }
                 if let coordinate = viewModel.selectedLocation?.coordinateDescription {
-                    Text(coordinate)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text(coordinate)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        #if canImport(UIKit)
+                        Button {
+                            UIPasteboard.general.string = coordinate
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(6)
+                        }
+                        .buttonStyle(.plain)
+                        #endif
+                    }
                 } else {
                     Text("点击地图即可放置定位点")
                         .font(.caption)
@@ -358,6 +385,8 @@ private struct SearchResultList: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(.systemBackground).opacity(0.9), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 }
             }
         }
@@ -370,12 +399,28 @@ private struct SearchHistoryList: View {
     var history: [SearchHistoryItem]
     var onSelect: (SearchHistoryItem) -> Void
     var onDelete: (SearchHistoryItem) -> Void
+    var onClearAll: () -> Void
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 6) {
-                ForEach(history) { item in
-                    Button(action: { onSelect(item) }) {
+        VStack(spacing: 10) {
+            HStack {
+                Text("搜索记录")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("清空") {
+                    onClearAll()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+
+            ScrollView {
+                VStack(spacing: 6) {
+                    ForEach(history) { item in
                         HStack(spacing: 10) {
                             Image(systemName: "clock")
                                 .font(.caption)
@@ -403,13 +448,19 @@ private struct SearchHistoryList: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onSelect(item)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
+                .padding(.horizontal, 4)
             }
         }
-        .frame(maxHeight: 200)
+        .frame(maxHeight: 240)
+        .padding(.bottom, 10)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

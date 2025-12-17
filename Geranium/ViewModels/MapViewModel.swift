@@ -301,6 +301,10 @@ final class MapViewModel: ObservableObject {
     }
 
     func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
+        // 点击地图时优先收起搜索结果/历史，避免遮挡与误触
+        showSearchResults = false
+        showSearchHistory = false
+
         let locationPoint = LocationPoint(coordinate: coordinate, label: nil)
         selectedLocation = locationPoint
         
@@ -584,6 +588,16 @@ final class MapViewModel: ObservableObject {
     
     func deleteHistoryItem(_ item: SearchHistoryItem) {
         searchHistoryStore.deleteItem(item)
+    }
+
+    func clearSearchHistory() {
+        searchHistoryStore.clearHistory()
+        showSearchHistory = false
+    }
+
+    func dismissSearchOverlay() {
+        showSearchResults = false
+        showSearchHistory = false
     }
 
     func clearSearch(clearText: Bool = true) {
