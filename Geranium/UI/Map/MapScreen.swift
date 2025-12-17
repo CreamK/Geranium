@@ -90,9 +90,7 @@ struct MapScreen: View {
                                })
         }
         .onChange(of: viewModel.searchText) { newValue in
-            if newValue.isEmpty {
-                viewModel.clearSearch()
-            }
+            viewModel.handleSearchTextChanged(newValue)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -122,14 +120,14 @@ struct MapScreen: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
-            TextField("搜索地点", text: $viewModel.searchText, onCommit: {
-                dismissKeyboard()
-                viewModel.performSearch()
-            })
+            TextField("搜索地点", text: $viewModel.searchText)
             .textInputAutocapitalization(.never)
             .disableAutocorrection(true)
             .focused($searchFocused)
             .submitLabel(.search)
+            .onSubmit {
+                dismissKeyboard()
+            }
             .onChange(of: searchFocused) { isFocused in
                 if isFocused && viewModel.searchText.isEmpty && !viewModel.searchHistory.isEmpty {
                     viewModel.showSearchHistory = true
@@ -262,9 +260,15 @@ private struct MapControlPanel: View {
             // 当前定位按钮 - 始终显示
             Button(action: viewModel.simulateCurrentLocation) {
                 HStack {
-                    Image(systemName: "location.circle.fill")
-                        .font(.body)
-                    Text("当前定位")
+                    if viewModel.isResolvingCurrentLocation {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "location.circle.fill")
+                            .font(.body)
+                    }
+                    Text(viewModel.isResolvingCurrentLocation ? "定位中..." : "当前定位")
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -273,6 +277,7 @@ private struct MapControlPanel: View {
                 .foregroundColor(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
+            .disabled(viewModel.isResolvingCurrentLocation)
             
             // 暂停模拟按钮 - 始终显示，未模拟时禁用
             Button(action: viewModel.stopSpoofing) {

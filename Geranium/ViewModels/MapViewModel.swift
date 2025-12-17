@@ -28,6 +28,7 @@ final class MapViewModel: ObservableObject {
     @Published var isAddingBookmark: Bool = false
     @Published var mapType: MKMapType = .standard
     @Published var showSearchHistory: Bool = false
+    @Published var isResolvingCurrentLocation: Bool = false
 
     var statusInfo: MapStatus {
         if let active = engine.session.activePoint {
@@ -58,6 +59,8 @@ final class MapViewModel: ObservableObject {
     private var hasCenteredOnUser = false
     private var shouldRestoreToRealLocation = false
     private var searchTask: Task<Void, Never>?
+    private var autoSearchDebounceTask: Task<Void, Never>?
+    private var suppressAutoSearch = false
     
     var searchHistory: [SearchHistoryItem] {
         searchHistoryStore.history
@@ -72,7 +75,7 @@ final class MapViewModel: ObservableObject {
         // 始终使用用户当前位置作为初始中心，如果没有则使用北京作为默认
         let defaultCenter: CLLocationCoordinate2D
         if let userLocation = locationAuthorizer.currentLocation {
-            defaultCenter = userLocation.coordinate
+            defaultCenter = CoordTransform.wgs84ToGcj02(userLocation.coordinate)
         } else {
             defaultCenter = CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
         }
@@ -100,21 +103,21 @@ final class MapViewModel: ObservableObject {
                     // 恢复定位：强制移动到真实位置，并确保用户位置图标显示
                     if let location = location {
                         shouldRestoreToRealLocation = false
-                        centerMap(on: location.coordinate)
+                        centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
                         // 触发视图更新以确保用户位置图标正确显示
                         objectWillChange.send()
                     }
                 } else if !hasCenteredOnUser, let location = location {
                     // 首次获取位置后：移动到用户位置
                     hasCenteredOnUser = true
-                    centerMap(on: location.coordinate)
+                    centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
                 }
             }
             .store(in: &cancellables)
     }
 
     func requestLocationPermission() {
-        locationAuthorizer.requestAuthorisation(always: true)
+        locationAuthorizer.requestAuthorisation(always: false)
     }
     
     func centerOnUserLocation() {
@@ -124,69 +127,70 @@ final class MapViewModel: ObservableObject {
         
         // 立即尝试获取位置
         if let location = locationAuthorizer.currentLocation {
-            centerMap(on: location.coordinate)
+            centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
         } else {
             // 如果没有立即获取到，等待一下再尝试
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
                 if let location = locationAuthorizer.currentLocation {
-                    centerMap(on: location.coordinate)
+                    centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
                 }
             }
         }
     }
     
     func simulateCurrentLocation() {
-        // 获取当前实际物理位置，跳转地图并显示标注（类似搜索结果）
+        guard !isResolvingCurrentLocation else { return }
+        isResolvingCurrentLocation = true
+
         Task { @MainActor in
+            defer { isResolvingCurrentLocation = false }
+
             // 先停止当前模拟，以便获取真实位置
+            let stopTimestamp = Date()
             engine.stopSpoofing()
             bookmarkStore.markAsLastUsed(nil)
-            
-            // 等待更长时间让位置服务完全恢复
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
-            
-            // 强制刷新位置服务以获取最新的真实位置
+
+            // 触发一次刷新，让 CLLocationManager 尽快吐出真实位置
             locationAuthorizer.refreshLocation()
-            
-            // 等待位置更新
-            try? await Task.sleep(nanoseconds: 800_000_000) // 0.8秒
-            
-            // 再次刷新以确保获取最新位置
-            locationAuthorizer.refreshLocation()
-            
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
-            
-            // 尝试获取当前位置
+
+            let pollInterval: UInt64 = 200_000_000 // 0.2s
+            let timeout: UInt64 = 4_000_000_000 // 4s
+            var elapsed: UInt64 = 0
+
+            while elapsed < timeout {
+                if let location = locationAuthorizer.currentLocation, shouldUseRestoredLocation(location, after: stopTimestamp) {
+                    await handleRealLocationFound(location)
+                    return
+                }
+                try? await Task.sleep(nanoseconds: pollInterval)
+                elapsed += pollInterval
+            }
+
+            // 兜底：即使没有拿到“更晚”的更新，也尽量使用现有位置（比如本来就没在模拟）
             if let location = locationAuthorizer.currentLocation {
                 await handleRealLocationFound(location)
                 return
             }
-            
-            // 如果没有立即获取到位置，多次尝试
-            for attempt in 0..<15 {
-                try? await Task.sleep(nanoseconds: 400_000_000) // 0.4秒
-                
-                // 每次都刷新位置服务
-                locationAuthorizer.refreshLocation()
-                
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
-                
-                if let location = locationAuthorizer.currentLocation {
-                    await handleRealLocationFound(location)
-                    return
-                }
-            }
-            
-            // 如果最终还是获取不到位置，显示错误
+
             errorMessage = "无法获取当前位置，请检查定位权限"
             showErrorAlert = true
         }
     }
+
+    private func shouldUseRestoredLocation(_ location: CLLocation, after stopTimestamp: Date) -> Bool {
+        if #available(iOS 15.0, *),
+           let source = location.sourceInformation,
+           source.isSimulatedBySoftware
+        {
+            return false
+        }
+        return location.timestamp >= stopTimestamp
+    }
     
     /// 处理找到真实位置后的逻辑：跳转地图、显示标注、开始模拟
     private func handleRealLocationFound(_ location: CLLocation) async {
-        let coordinate = location.coordinate
+        let displayCoordinate = CoordTransform.wgs84ToGcj02(location.coordinate)
         
         // 使用反向地理编码获取地名（类似搜索结果）
         let geocoder = CLGeocoder()
@@ -219,44 +223,33 @@ final class MapViewModel: ObservableObject {
             // 反向地理编码失败时使用默认名称
         }
         
-        // 创建位置点（类似搜索结果）
-        let locationPoint = LocationPoint(coordinate: coordinate, label: locationName, note: locationNote)
+        // 创建位置点（用于地图显示，使用 GCJ-02 坐标以匹配中国地图偏移）
+        let displayPoint = LocationPoint(coordinate: displayCoordinate,
+                                         altitude: location.altitude,
+                                         label: locationName,
+                                         note: locationNote)
         
         // 清除搜索相关状态
         showSearchResults = false
         showSearchHistory = false
         searchResults = []
-        searchText = locationName
+        setSearchTextProgrammatically(locationName)
         
         // 保存到搜索历史
-        searchHistoryStore.addSearchItem(query: locationName, coordinate: coordinate)
+        searchHistoryStore.addSearchItem(query: locationName, coordinate: displayCoordinate)
         
         // 先设置选中位置（这会触发标注更新）
-        selectedLocation = locationPoint
+        selectedLocation = displayPoint
         
-        // 使用较小的延迟确保 selectedLocation 更新已经生效
-        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
-        
-        // 强制更新地图区域 - 使用新的 span 确保变化被检测到
-        let currentSpan = mapRegion.span
-        let newRegion = MKCoordinateRegion(
-            center: coordinate,
-            span: MKCoordinateSpan(
-                latitudeDelta: currentSpan.latitudeDelta,
-                longitudeDelta: currentSpan.longitudeDelta
-            )
-        )
-        mapRegion = newRegion
-        lastMapCenter = coordinate
-        
-        // 触发视图更新
-        objectWillChange.send()
-        
-        // 再等待一小段时间让地图跳转完成
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-        
-        // 开始模拟当前位置
-        startSpoofing(point: locationPoint, bookmark: nil)
+        // 跳转到显示用坐标
+        centerMap(on: displayCoordinate)
+
+        // 开始模拟（使用真实的 WGS-84 坐标，避免重复/错误的坐标转换）
+        let physicalPoint = LocationPoint(coordinate: location.coordinate,
+                                          altitude: location.altitude,
+                                          label: locationName,
+                                          note: locationNote)
+        startSpoofing(point: physicalPoint, bookmark: nil, coordinateSpace: .wgs84)
     }
 
     func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
@@ -327,7 +320,7 @@ final class MapViewModel: ObservableObject {
                 centerMap(on: coordinate)
                 
                 // 开始模拟当前位置
-                startSpoofing(point: locationPoint, bookmark: nil)
+                startSpoofing(point: locationPoint, bookmark: nil, coordinateSpace: .wgs84)
                 return
             }
             
@@ -360,7 +353,7 @@ final class MapViewModel: ObservableObject {
                     centerMap(on: coordinate)
                     
                     // 开始模拟当前位置
-                    startSpoofing(point: locationPoint, bookmark: nil)
+                    startSpoofing(point: locationPoint, bookmark: nil, coordinateSpace: .wgs84)
                     return
                 }
             }
@@ -368,8 +361,37 @@ final class MapViewModel: ObservableObject {
     }
 
     func performSearch() {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        performSearch(query: nil)
+    }
+
+    func handleSearchTextChanged(_ newValue: String) {
+        guard !suppressAutoSearch else { return }
+
+        let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if query.isEmpty {
+            clearSearch(clearText: false)
+            if !searchHistory.isEmpty {
+                showSearchHistory = true
+            }
+            return
+        }
+
+        showSearchHistory = false
+
+        autoSearchDebounceTask?.cancel()
+        autoSearchDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000) // 0.25s
+            guard let self, !Task.isCancelled else { return }
+            await MainActor.run {
+                self.performSearch(query: query)
+            }
+        }
+    }
+
+    private func performSearch(query explicitQuery: String?) {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveQuery = (explicitQuery ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
+        if effectiveQuery.isEmpty {
             searchResults = []
             showSearchResults = false
             return
@@ -377,12 +399,13 @@ final class MapViewModel: ObservableObject {
 
         isSearching = true
         searchTask?.cancel()
+        let requestedQuery = effectiveQuery
         searchTask = Task { [weak self] in
             guard let self else { return }
             
             // 创建搜索请求 - 使用扩大的搜索区域以获得更多结果
             let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = query
+            request.naturalLanguageQuery = requestedQuery
             
             // 扩大搜索区域：使用当前地图中心但扩大搜索范围
             // 这样可以获得更多模糊匹配的结果
@@ -417,7 +440,7 @@ final class MapViewModel: ObservableObject {
                 }
                 
                 // 按相关性进行模糊匹配排序：完全匹配 > 开头匹配 > 包含匹配
-                let queryLower = query.lowercased()
+                let queryLower = requestedQuery.lowercased()
                 let queryWords = queryLower.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
                 
                 mapped.sort { first, second in
@@ -454,6 +477,13 @@ final class MapViewModel: ObservableObject {
                 let maxResults = min(mapped.count, 30)
                 
                 await MainActor.run {
+                    // 避免旧请求覆盖新输入的结果
+                    let currentQuery = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard currentQuery == requestedQuery else {
+                        self.isSearching = false
+                        return
+                    }
+
                     self.searchResults = Array(mapped.prefix(maxResults))
                     self.showSearchResults = !self.searchResults.isEmpty
                     self.isSearching = false
@@ -474,7 +504,7 @@ final class MapViewModel: ObservableObject {
         showSearchResults = false
         showSearchHistory = false
         searchResults = []
-        searchText = result.title
+        setSearchTextProgrammatically(result.title)
         
         // 保存到搜索历史
         searchHistoryStore.addSearchItem(query: result.title, coordinate: coordinate)
@@ -498,7 +528,7 @@ final class MapViewModel: ObservableObject {
         showSearchResults = false
         
         // 更新搜索框文字
-        searchText = item.query
+        setSearchTextProgrammatically(item.query)
         
         // 自动开始模拟选中的位置
         startSpoofing(point: locationPoint, bookmark: nil)
@@ -508,13 +538,24 @@ final class MapViewModel: ObservableObject {
         searchHistoryStore.deleteItem(item)
     }
 
-    func clearSearch() {
-        searchText = ""
+    func clearSearch(clearText: Bool = true) {
+        if clearText {
+            setSearchTextProgrammatically("")
+        }
         searchResults = []
         showSearchResults = false
         showSearchHistory = false
         isSearching = false
         searchTask?.cancel()
+        autoSearchDebounceTask?.cancel()
+    }
+
+    private func setSearchTextProgrammatically(_ text: String) {
+        suppressAutoSearch = true
+        searchText = text
+        Task { @MainActor in
+            suppressAutoSearch = false
+        }
     }
     
     func toggleSearchHistory() {
@@ -612,8 +653,11 @@ final class MapViewModel: ObservableObject {
         }
     }
 
-    private func startSpoofing(point: LocationPoint, bookmark: Bookmark?) {
-        engine.startSpoofing(point: point)
+    private func startSpoofing(point: LocationPoint,
+                               bookmark: Bookmark?,
+                               coordinateSpace: LocationSpoofingEngine.CoordinateSpace = .gcj02)
+    {
+        engine.startSpoofing(point: point, coordinateSpace: coordinateSpace)
         if let bookmark {
             bookmarkStore.markAsLastUsed(bookmark)
         } else {
