@@ -280,11 +280,17 @@ private struct MapControlPanel: View {
             .disabled(viewModel.isResolvingCurrentLocation)
             
             // 暂停模拟按钮 - 始终显示，未模拟时禁用
-            Button(action: viewModel.stopSpoofing) {
+            Button(action: viewModel.pauseSpoofingAndCenterOnUserLocation) {
                 HStack {
-                    Image(systemName: "pause.circle.fill")
-                        .font(.body)
-                    Text("暂停模拟")
+                    if viewModel.isResolvingCurrentLocation {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "pause.circle.fill")
+                            .font(.body)
+                    }
+                    Text(viewModel.isResolvingCurrentLocation ? "定位中..." : "暂停模拟")
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -293,7 +299,7 @@ private struct MapControlPanel: View {
                 .foregroundColor(viewModel.activeLocation != nil ? .white : .secondary)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .disabled(viewModel.activeLocation == nil)
+            .disabled(viewModel.activeLocation == nil || viewModel.isResolvingCurrentLocation)
 
             // 快速收藏按钮 - 始终显示，未选择位置时禁用
             Button(action: viewModel.quickAddBookmark) {

@@ -68,6 +68,10 @@ class LocationModel: NSObject, ObservableObject {
         }
         locationManager.startUpdatingLocation()
     }
+
+    public func requestSingleLocation() {
+        locationManager.requestLocation()
+    }
     
     /// 强制刷新位置更新 - 停止并重新启动位置服务以获取最新位置
     public func refreshLocation() {
@@ -92,5 +96,9 @@ extension LocationModel: CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.currentLocation = location
         }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Intentionally ignored: callers handle missing location via polling / UI feedback.
     }
 }
