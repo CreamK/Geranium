@@ -66,13 +66,13 @@ struct MapScreen: View {
         }
         .overlay(alignment: .bottomLeading) {
             MapStatusBadge(viewModel: viewModel)
-                .padding(.leading, 16)
-                .padding(.bottom, 24)
+                .padding(.leading, 14)
+                .padding(.bottom, 22)
         }
         .overlay(alignment: .bottomTrailing) {
             FloatingMapActions(viewModel: viewModel)
-                .padding(.trailing, 16)
-                .padding(.bottom, 28)
+                .padding(.trailing, 14)
+                .padding(.bottom, 24)
         }
         .alert(isPresented: $viewModel.showErrorAlert) {
             Alert(title: Text(""),
@@ -287,13 +287,15 @@ private struct MapStatusBadge: View {
             }
         }
         .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06))
         }
         .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+        .frame(maxWidth: 210, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -301,7 +303,7 @@ private struct FloatingMapActions: View {
     @ObservedObject var viewModel: MapViewModel
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             MapActionButton(icon: "location.circle.fill",
                             label: "定位",
                             tint: .blue,
@@ -323,9 +325,9 @@ private struct FloatingMapActions: View {
                             disabled: viewModel.isAddingBookmark || viewModel.selectedLocation == nil,
                             action: viewModel.quickAddBookmark)
         }
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
+        .padding(10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
     }
 }
 
@@ -343,7 +345,7 @@ private struct MapActionButton: View {
                 ZStack {
                     Circle()
                         .fill((disabled ? tint.opacity(0.35) : tint).opacity(0.95))
-                        .frame(width: 48, height: 48)
+                        .frame(width: 42, height: 42)
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(.circular)
@@ -351,11 +353,11 @@ private struct MapActionButton: View {
                     } else {
                         Image(systemName: icon)
                             .foregroundColor(.white)
-                            .font(.body.weight(.semibold))
+                            .font(.callout.weight(.semibold))
                     }
                 }
                 Text(label)
-                    .font(.caption2)
+                    .font(.caption2.weight(.medium))
                     .foregroundColor(.primary)
             }
         }

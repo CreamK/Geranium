@@ -102,7 +102,7 @@ final class MapViewModel: ObservableObject {
                 guard let self else { return }
                 if shouldRestoreToRealLocation {
                     // 恢复定位：强制移动到真实位置，并确保用户位置图标显示
-                    if let location = location {
+                    if let location = location, isNonSimulatedLocation(location) {
                         shouldRestoreToRealLocation = false
                         centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
                         // 触发视图更新以确保用户位置图标正确显示
@@ -160,11 +160,12 @@ final class MapViewModel: ObservableObject {
             engine.stopSpoofing()
             bookmarkStore.markAsLastUsed(nil)
 
+            shouldRestoreToRealLocation = true
             locationAuthorizer.refreshLocation()
             locationAuthorizer.requestSingleLocation()
 
             let pollInterval: UInt64 = 120_000_000 // 0.12s
-            let timeout: UInt64 = 2_000_000_000 // 2s
+            let timeout: UInt64 = 4_000_000_000 // 4s
             var elapsed: UInt64 = 0
 
             // 先用能拿到的“非模拟定位”快速跳转（未在模拟时不强制要求新的 timestamp）
@@ -196,6 +197,7 @@ final class MapViewModel: ObservableObject {
                 return
             }
 
+            shouldRestoreToRealLocation = false
             errorMessage = "无法获取当前位置，请检查定位权限"
             showErrorAlert = true
         }
@@ -219,6 +221,7 @@ final class MapViewModel: ObservableObject {
     
     /// 处理找到真实位置后的逻辑：跳转地图、显示标注、开始模拟
     private func handleRealLocationFound(_ location: CLLocation, shouldStartSpoofing: Bool) async {
+        shouldRestoreToRealLocation = false
         let displayCoordinate = CoordTransform.wgs84ToGcj02(location.coordinate)
         
         // 先快速跳转：不要阻塞在反向地理编码上
