@@ -63,12 +63,16 @@ struct MapScreen: View {
 
                 Spacer()
             }
-
-            VStack {
-                Spacer()
-                MapControlPanel(viewModel: viewModel)
-                    .padding()
-            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            MapStatusBadge(viewModel: viewModel)
+                .padding(.leading, 16)
+                .padding(.bottom, 24)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            FloatingMapActions(viewModel: viewModel)
+                .padding(.trailing, 16)
+                .padding(.bottom, 28)
         }
         .alert(isPresented: $viewModel.showErrorAlert) {
             Alert(title: Text(""),
@@ -231,133 +235,133 @@ struct MapScreen: View {
     }
 }
 
-private struct MapControlPanel: View {
+private struct MapStatusBadge: View {
     @ObservedObject var viewModel: MapViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    if viewModel.activeLocation != nil {
-                        Text("模拟中")
-                            .font(.headline)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                if viewModel.activeLocation != nil {
+                    Text("模拟中")
+                        .font(.subheadline.weight(.semibold))
+                    Image(systemName: "location.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                } else {
+                    Text(viewModel.selectedLocation != nil ? "已选择" : "当前预览")
+                        .font(.subheadline.weight(.semibold))
+                    if viewModel.selectedLocation != nil {
                         Image(systemName: "location.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.blue)
                             .font(.caption)
-                    } else {
-                        Text(viewModel.selectedLocation != nil ? "已选择" : "当前预览")
-                            .font(.headline)
-                        if viewModel.selectedLocation != nil {
-                            Image(systemName: "location.fill")
-                                .foregroundColor(.blue)
-                                .font(.caption)
-                        }
                     }
                 }
-                if let coordinate = viewModel.selectedLocation?.coordinateDescription {
-                    HStack(spacing: 8) {
-                        Text(coordinate)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                        #if canImport(UIKit)
-                        Button {
-                            UIPasteboard.general.string = coordinate
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(6)
-                        }
-                        .buttonStyle(.plain)
-                        #endif
-                    }
-                } else {
-                    Text("点击地图即可放置定位点")
+            }
+            if let coordinate = viewModel.selectedLocation?.coordinateDescription {
+                HStack(spacing: 8) {
+                    Text(coordinate)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                if viewModel.activeLocation != nil {
-                    Text("定位模拟已开启")
-                        .font(.caption2)
-                        .foregroundColor(.green)
-                }
-            }
-
-            // 当前定位按钮 - 始终显示
-            Button(action: viewModel.simulateCurrentLocation) {
-                HStack {
-                    if viewModel.isResolvingCurrentLocation {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.9)
-                    } else {
-                        Image(systemName: "location.circle.fill")
-                            .font(.body)
+                    Spacer(minLength: 0)
+                    #if canImport(UIKit)
+                    Button {
+                        UIPasteboard.general.string = coordinate
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(6)
                     }
-                    Text(viewModel.isResolvingCurrentLocation ? "定位中..." : "当前定位")
-                        .font(.headline)
+                    .buttonStyle(.plain)
+                    #endif
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.blue.opacity(0.9))
-                .foregroundColor(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            } else {
+                Text("点击地图即可放置定位点")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .disabled(viewModel.isResolvingCurrentLocation)
-            
-            // 暂停模拟按钮 - 始终显示，未模拟时禁用
-            Button(action: viewModel.pauseSpoofingAndCenterOnUserLocation) {
-                HStack {
-                    if viewModel.isResolvingCurrentLocation {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.9)
-                    } else {
-                        Image(systemName: "pause.circle.fill")
-                            .font(.body)
-                    }
-                    Text(viewModel.isResolvingCurrentLocation ? "定位中..." : "暂停模拟")
-                        .font(.headline)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(viewModel.activeLocation != nil ? Color.orange.opacity(0.9) : Color.secondary.opacity(0.2))
-                .foregroundColor(viewModel.activeLocation != nil ? .white : .secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            if viewModel.activeLocation != nil {
+                Text("定位模拟已开启")
+                    .font(.caption2)
+                    .foregroundColor(.green)
             }
-            .disabled(viewModel.activeLocation == nil || viewModel.isResolvingCurrentLocation)
-
-            // 快速收藏按钮 - 始终显示，未选择位置时禁用
-            Button(action: viewModel.quickAddBookmark) {
-                HStack {
-                    if viewModel.isAddingBookmark {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "bookmark.fill")
-                            .font(.body)
-                    }
-                    Text(viewModel.isAddingBookmark ? "收藏中..." : "快速收藏")
-                        .font(.headline)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(viewModel.isAddingBookmark ? Color.secondary.opacity(0.3) : 
-                           (viewModel.selectedLocation != nil ? Color.orange : Color.secondary.opacity(0.2)))
-                .foregroundColor(viewModel.selectedLocation != nil ? .white : .secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .disabled(viewModel.isAddingBookmark || viewModel.selectedLocation == nil)
-
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06))
         }
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+    }
+}
+
+private struct FloatingMapActions: View {
+    @ObservedObject var viewModel: MapViewModel
+
+    var body: some View {
+        VStack(spacing: 12) {
+            MapActionButton(icon: "location.circle.fill",
+                            label: "定位",
+                            tint: .blue,
+                            isLoading: viewModel.isResolvingCurrentLocation,
+                            disabled: viewModel.isResolvingCurrentLocation,
+                            action: viewModel.simulateCurrentLocation)
+
+            MapActionButton(icon: "pause.circle.fill",
+                            label: "暂停",
+                            tint: viewModel.activeLocation != nil ? .orange : .secondary,
+                            isLoading: false,
+                            disabled: viewModel.activeLocation == nil || viewModel.isResolvingCurrentLocation,
+                            action: viewModel.pauseSpoofingAndCenterOnUserLocation)
+
+            MapActionButton(icon: "bookmark.fill",
+                            label: "收藏",
+                            tint: viewModel.selectedLocation != nil ? .orange : .secondary,
+                            isLoading: viewModel.isAddingBookmark,
+                            disabled: viewModel.isAddingBookmark || viewModel.selectedLocation == nil,
+                            action: viewModel.quickAddBookmark)
+        }
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
+    }
+}
+
+private struct MapActionButton: View {
+    var icon: String
+    var label: String
+    var tint: Color
+    var isLoading: Bool
+    var disabled: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill((disabled ? tint.opacity(0.35) : tint).opacity(0.95))
+                        .frame(width: 48, height: 48)
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                    } else {
+                        Image(systemName: icon)
+                            .foregroundColor(.white)
+                            .font(.body.weight(.semibold))
+                    }
+                }
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.72 : 1)
     }
 }
 
