@@ -28,7 +28,7 @@ final class BookmarkStore: ObservableObject {
         self.defaults = userDefaults ?? .standard
         loadBookmarksFromDefaults()
         refreshLegacyImportFlag()
-        defaultsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+        defaultsObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 self?.loadBookmarksFromDefaults()
             }
@@ -55,6 +55,13 @@ final class BookmarkStore: ObservableObject {
     }
 
     func deleteBookmarks(at offsets: IndexSet) {
+        let deletedIDs = offsets.compactMap { index in
+            bookmarks.indices.contains(index) ? bookmarks[index].id : nil
+        }
+        if let lastUsedBookmarkID, deletedIDs.contains(lastUsedBookmarkID) {
+            self.lastUsedBookmarkID = nil
+            defaults.removeObject(forKey: lastUsedKey)
+        }
         bookmarks.remove(atOffsets: offsets)
         persist()
     }
@@ -160,6 +167,7 @@ final class BookmarkStore: ObservableObject {
         guard let serialized = defaults.array(forKey: storageKey) as? [[String: Any]] else {
             bookmarks = []
             lastUsedBookmarkID = nil
+            refreshLegacyImportFlag()
             return
         }
 
@@ -236,7 +244,8 @@ private enum LegacyMikaImporter {
             guard
                 let lat = entry["la"] as? Double,
                 let long = entry["lo"] as? Double,
-                let name = entry["remark"] as? String
+                let name = entry["remark"] as? String,
+                CLLocationCoordinate2D(latitude: lat, longitude: long).isValidGeraniumCoordinate
             else { return nil }
             return Bookmark(name: name, coordinate: .init(latitude: lat, longitude: long))
         }

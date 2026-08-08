@@ -48,12 +48,10 @@ struct MapCanvasView: UIViewRepresentable {
         // 如果区域有显著变化，强制更新（即使用户正在交互）
         if centerChanged {
             context.coordinator.isUserInteracting = false
-            // 使用 setRegion 强制跳转
-            uiView.setRegion(region, animated: true)
-            // 同时使用 setCenter 确保中心点正确
-            uiView.setCenter(targetCenter, animated: true)
-        } else if !context.coordinator.isUserInteracting {
-            uiView.setRegion(region, animated: true)
+            // Location changes should be immediate; animated region updates
+            // can leave the map visibly behind the active simulated point.
+            uiView.setRegion(region, animated: false)
+            uiView.setCenter(targetCenter, animated: false)
         }
         
         // 检查坐标是否有变化，如果有变化才更新标注
@@ -66,7 +64,7 @@ struct MapCanvasView: UIViewRepresentable {
         if selectedChanged, let selected = selectedCoordinate {
             context.coordinator.isUserInteracting = false
             let newRegion = MKCoordinateRegion(center: selected, span: uiView.region.span)
-            uiView.setRegion(newRegion, animated: true)
+            uiView.setRegion(newRegion, animated: false)
         }
         
         // 如果坐标发生变化，更新标注

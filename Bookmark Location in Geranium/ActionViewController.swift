@@ -24,42 +24,59 @@ class ActionViewController: UIViewController {
     }
 
     @IBAction func saveButtonPressed(_ sender: UIButton) {
-        if let sharedItems = extensionContext?.inputItems as? [NSExtensionItem],
-           let firstItem = sharedItems.first,
-           let attachments = firstItem.attachments {
-            
-            for provider in attachments {
-                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier as String) {
-                    provider.loadItem(forTypeIdentifier: UTType.url.identifier as String, options: nil, completionHandler: { (url, error) in
-                        if let url = url as? URL {
-                            if let latitude = self.getParameter(from: url, key: "ll")?.components(separatedBy: ",").first,
-                               let longitude = self.getParameter(from: url, key: "ll")?.components(separatedBy: ",").last,
-                               let latitudeDouble = Double(latitude),
-                               let longitudeDouble = Double(longitude) {
-                                DispatchQueue.main.async {
-                                    let bookmarkName = self.textField.text
-                                    print(self.BookMarkSave(lat: latitudeDouble, long: longitudeDouble, name: bookmarkName ?? ""))
-                                    self.done()
-                                }
-                            }
-                        }
-                    })
-                }
-            }
+        guard let sharedItems = extensionContext?.inputItems as? [NSExtensionItem],
+              let firstItem = sharedItems.first,
+              let provider = firstItem.attachments?.first(where: {
+                  $0.hasItemConformingToTypeIdentifier(UTType.url.identifier)
+              }) else {
+            done()
+            return
         }
-        dismiss(animated: true) {
+
+        provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard let url = item as? URL,
+                      let location = self.getParameter(from: url, key: "ll")?
+                        .split(separator: ",", maxSplits: 1)
+                        .map(String.init),
+                      location.count == 2,
+                      let latitude = Double(location[0].trimmingCharacters(in: .whitespaces)),
+                      let longitude = Double(location[1].trimmingCharacters(in: .whitespaces)) else {
+                    self.done()
+                    return
+                }
+
+                let bookmarkName = self.textField.text ?? ""
+                _ = self.BookMarkSave(lat: latitude, long: longitude, name: bookmarkName)
+                self.done()
+            }
         }
     }
 
     @IBAction func done() {
-        self.extensionContext?.completeRequest(returningItems: self.extensionContext!.inputItems, completionHandler: nil)
+        guard let extensionContext else { return }
+        extensionContext.completeRequest(returningItems: extensionContext.inputItems, completionHandler: nil)
     }
     
     let sharedUserDefaultsSuiteName = "group.live.cclerc.geraniumBookmarks"
 
     func BookMarkSave(lat: Double, long: Double, name: String) -> Bool {
-        let bookmark: [String: Any] = ["name": name, "lat": lat, "long": long]
         var bookmarks = BookMarkRetrieve()
+        guard lat.isFinite, long.isFinite,
+              (-90.0...90.0).contains(lat),
+              (-180.0...180.0).contains(long) else {
+            return false
+        }
+        guard !bookmarks.contains(where: { existing in
+            guard let existingLat = existing["lat"] as? Double,
+                  let existingLong = existing["long"] as? Double else { return false }
+            return abs(existingLat - lat) < 0.00001 && abs(existingLong - long) < 0.00001
+        }) else {
+            return false
+        }
+
+        let bookmark: [String: Any] = ["name": name, "lat": lat, "long": long]
         bookmarks.append(bookmark)
         let sharedUserDefaults = UserDefaults(suiteName: sharedUserDefaultsSuiteName)
         sharedUserDefaults?.set(bookmarks, forKey: "bookmarks")

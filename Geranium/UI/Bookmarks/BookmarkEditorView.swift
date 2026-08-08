@@ -130,6 +130,10 @@ struct BookmarkEditorView: View {
             showValidationError = true
             return
         }
+        guard CLLocationCoordinate2D(latitude: latitude, longitude: longitude).isValidGeraniumCoordinate else {
+            showValidationError = true
+            return
+        }
         let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         onSave(name.isEmpty ? "未命名收藏" : name,
                coordinate,

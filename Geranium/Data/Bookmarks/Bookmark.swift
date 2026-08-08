@@ -34,7 +34,8 @@ struct Bookmark: Identifiable, Equatable {
         guard
             let lat = Bookmark.doubleValue(from: dictionary["lat"]),
             let long = Bookmark.doubleValue(from: dictionary["long"]),
-            let name = dictionary["name"] as? String
+            let name = dictionary["name"] as? String,
+            CLLocationCoordinate2D(latitude: lat, longitude: long).isValidGeraniumCoordinate
         else {
             return nil
         }

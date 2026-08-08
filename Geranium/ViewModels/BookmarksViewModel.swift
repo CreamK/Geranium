@@ -52,10 +52,19 @@ final class BookmarksViewModel: ObservableObject {
     }
 
     func deleteBookmarks(at offsets: IndexSet) {
+        if let activeID = store.lastUsedBookmarkID,
+           offsets.contains(where: { index in
+               store.bookmarks.indices.contains(index) && store.bookmarks[index].id == activeID
+           }) {
+            mapViewModel.stopSpoofing()
+        }
         store.deleteBookmarks(at: offsets)
     }
 
     func delete(_ bookmark: Bookmark) {
+        if isBookmarkSimulating(bookmark) {
+            mapViewModel.stopSpoofing()
+        }
         if let index = store.bookmarks.firstIndex(of: bookmark) {
             store.deleteBookmarks(at: IndexSet(integer: index))
         }

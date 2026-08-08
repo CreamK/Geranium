@@ -18,6 +18,11 @@ final class LocationSpoofingEngine: ObservableObject {
     @Published private(set) var session = LocationSpoofingSession()
 
     func startSpoofing(point: LocationPoint, coordinateSpace: CoordinateSpace = .gcj02) {
+        guard point.coordinate.isValidGeraniumCoordinate else {
+            session.lastError = .invalidCoordinate
+            return
+        }
+
         let simulationCoordinate: CLLocationCoordinate2D
         let displayPoint: LocationPoint
 

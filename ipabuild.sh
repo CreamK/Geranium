@@ -53,44 +53,24 @@ fi
 # Ensure we're in the repository root for submodule operations
 cd "$WORKING_LOCATION"
 
-# Check if RootHelper exists (from workflow or previous initialization)
-if [ -d "$WORKING_LOCATION/RootHelper" ] && [ -d "$WORKING_LOCATION/RootHelper/.git" ]; then
-    echo "RootHelper directory found, skipping submodule update."
-else
-    echo "RootHelper directory not found or incomplete, attempting to initialize..."
-    
-    # Try to update submodule with pinned commit
-    # Note: This may fail if the commit doesn't exist
-    set +e  # Temporarily disable exit on error for submodule update
-    git submodule update --init --recursive --depth=1 2>&1
-    SUBMODULE_UPDATE_STATUS=$?
-    set -e  # Re-enable exit on error
-    
-    if [ $SUBMODULE_UPDATE_STATUS -ne 0 ]; then
-        echo "Warning: Submodule update failed (exit code: $SUBMODULE_UPDATE_STATUS)."
-        echo "This might be because the pinned commit doesn't exist in the remote repository."
-        echo "Attempting to clone the latest version instead..."
-        
-        # Remove broken submodule reference if it exists
-        if [ -d "$WORKING_LOCATION/RootHelper" ]; then
-            rm -rf "$WORKING_LOCATION/RootHelper"
-        fi
-        
-        # Clone the latest version from the repository
-        echo "Cloning latest version from https://github.com/c22dev/Geranium-RH..."
-        if git clone --depth=1 https://github.com/c22dev/Geranium-RH "$WORKING_LOCATION/RootHelper"; then
-            echo "Successfully cloned latest version of RootHelper."
-        else
-            echo "Error: Failed to clone RootHelper repository."
-            exit 1
-        fi
-    fi
-    
-    # Final verification that RootHelper exists
-    if [ ! -d "$WORKING_LOCATION/RootHelper" ]; then
-        echo "Error: RootHelper directory is required but not found after update attempt."
-        exit 1
-    fi
+# RootHelper is a pinned git submodule. Never replace it with an unpinned clone.
+if [ ! -e "$WORKING_LOCATION/RootHelper/.git" ]; then
+    echo "Initializing the pinned RootHelper submodule..."
+    git submodule update --init --recursive
+fi
+
+if [ ! -e "$WORKING_LOCATION/RootHelper/.git" ]; then
+    echo "Error: the pinned RootHelper submodule could not be initialized."
+    exit 1
+fi
+
+EXPECTED_ROOT_HELPER=$(git rev-parse :RootHelper)
+ACTUAL_ROOT_HELPER=$(git -C "$WORKING_LOCATION/RootHelper" rev-parse HEAD)
+if [ "$EXPECTED_ROOT_HELPER" != "$ACTUAL_ROOT_HELPER" ]; then
+    echo "Error: RootHelper is not at the pinned commit."
+    echo "Expected: $EXPECTED_ROOT_HELPER"
+    echo "Actual:   $ACTUAL_ROOT_HELPER"
+    exit 1
 fi
 
 # Return to build directory

@@ -53,6 +53,11 @@ class LocationModel: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     @Published var authorisationStatus: CLAuthorizationStatus = .notDetermined
     @Published var currentLocation: CLLocation?
+    /// Keeps the last location that was not reported as software-simulated.
+    /// Core Location can continue returning the simulated value briefly after
+    /// the simulation is stopped, so callers need this cached real value for
+    /// an immediate restore.
+    private(set) var lastRealLocation: CLLocation?
 
     override init() {
         super.init()
@@ -95,6 +100,10 @@ extension LocationModel: CLLocationManagerDelegate {
         guard let location = locations.last else { return }
         DispatchQueue.main.async {
             self.currentLocation = location
+            if #available(iOS 15.0, *), location.sourceInformation?.isSimulatedBySoftware == true {
+                return
+            }
+            self.lastRealLocation = location
         }
     }
 

@@ -8,6 +8,15 @@
 import Foundation
 import CoreLocation
 
+extension CLLocationCoordinate2D {
+    /// Returns true only for finite geographic coordinates.
+    var isValidGeraniumCoordinate: Bool {
+        latitude.isFinite && longitude.isFinite &&
+        (-90.0...90.0).contains(latitude) &&
+        (-180.0...180.0).contains(longitude)
+    }
+}
+
 struct LocationPoint: Equatable {
     var latitude: Double
     var longitude: Double

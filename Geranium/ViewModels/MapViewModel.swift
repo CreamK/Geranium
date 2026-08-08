@@ -104,7 +104,12 @@ final class MapViewModel: ObservableObject {
                     // 恢复定位：强制移动到真实位置，并确保用户位置图标显示
                     if let location = location, isNonSimulatedLocation(location) {
                         shouldRestoreToRealLocation = false
-                        centerMap(on: CoordTransform.wgs84ToGcj02(location.coordinate))
+                        let displayCoordinate = CoordTransform.wgs84ToGcj02(location.coordinate)
+                        selectedLocation = LocationPoint(coordinate: displayCoordinate,
+                                                         altitude: location.altitude,
+                                                         label: "当前位置",
+                                                         note: nil)
+                        centerMap(on: displayCoordinate)
                         // 触发视图更新以确保用户位置图标正确显示
                         objectWillChange.send()
                     }
@@ -163,6 +168,19 @@ final class MapViewModel: ObservableObject {
             shouldRestoreToRealLocation = true
             locationAuthorizer.refreshLocation()
             locationAuthorizer.requestSingleLocation()
+
+            // Use the last known physical location immediately. After a
+            // simulation stops, Core Location may take a while to replace its
+            // cached simulated value with a new physical update.
+            if let location = locationAuthorizer.lastRealLocation ??
+                (locationAuthorizer.currentLocation.flatMap({ isNonSimulatedLocation($0) ? $0 : nil }))
+            {
+                await handleRealLocationFound(location, shouldStartSpoofing: shouldStartSpoofing)
+                // Continue listening for a newer physical update, but do not
+                // block the UI or delay the initial map jump.
+                shouldRestoreToRealLocation = true
+                return
+            }
 
             let pollInterval: UInt64 = 120_000_000 // 0.12s
             let timeout: UInt64 = 4_000_000_000 // 4s
@@ -356,63 +374,8 @@ final class MapViewModel: ObservableObject {
     }
 
     func restoreLocation() {
-        // 先停止当前的模拟
-        engine.stopSpoofing()
-        bookmarkStore.markAsLastUsed(nil)
-        
-        // 异步获取真实位置并跳转、模拟
-        Task { @MainActor in
-            // 先尝试立即获取位置
-            if let location = locationAuthorizer.currentLocation {
-                // 创建当前位置的 LocationPoint
-                let coordinate = location.coordinate
-                let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
-                
-                // 设置为选中位置
-                selectedLocation = locationPoint
-                
-                // 立即跳转到真实位置
-                centerMap(on: coordinate)
-                
-                // 开始模拟当前位置
-                startSpoofing(point: locationPoint, bookmark: nil, coordinateSpace: .wgs84)
-                return
-            }
-            
-            // 如果没有位置，等待位置服务恢复
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒延迟
-            
-            // 强制刷新位置服务
-            locationAuthorizer.refreshLocation()
-            
-            // 多次尝试获取真实位置并跳转
-            for attempt in 0..<10 {
-                // 等待位置更新
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
-                
-                // 强制刷新位置服务
-                if attempt % 2 == 0 {
-                    locationAuthorizer.refreshLocation()
-                }
-                
-                // 检查是否有真实位置
-                if let location = locationAuthorizer.currentLocation {
-                    // 创建当前位置的 LocationPoint
-                    let coordinate = location.coordinate
-                    let locationPoint = LocationPoint(coordinate: coordinate, label: "当前位置", note: nil)
-                    
-                    // 设置为选中位置
-                    selectedLocation = locationPoint
-                    
-                    // 跳转到真实位置（带动画）
-                    centerMap(on: coordinate)
-                    
-                    // 开始模拟当前位置
-                    startSpoofing(point: locationPoint, bookmark: nil, coordinateSpace: .wgs84)
-                    return
-                }
-            }
-        }
+        // Use the same freshness and simulated-location checks as the pause action.
+        performCurrentLocationAction(shouldStartSpoofing: false)
     }
 
     func performSearch() {
@@ -722,6 +685,12 @@ final class MapViewModel: ObservableObject {
                                bookmark: Bookmark?,
                                coordinateSpace: LocationSpoofingEngine.CoordinateSpace = .gcj02)
     {
+        guard point.coordinate.isValidGeraniumCoordinate else {
+            errorMessage = LocationSpoofingError.invalidCoordinate.localizedDescription
+            showErrorAlert = true
+            return
+        }
+
         engine.startSpoofing(point: point, coordinateSpace: coordinateSpace)
         if let bookmark {
             bookmarkStore.markAsLastUsed(bookmark)
@@ -731,9 +700,7 @@ final class MapViewModel: ObservableObject {
     }
 
     private func centerMap(on coordinate: CLLocationCoordinate2D) {
-        withAnimation(settings.dampedAnimations ? .spring(response: 0.45, dampingFraction: 0.75) : .default) {
-            mapRegion = MKCoordinateRegion(center: coordinate, span: mapRegion.span)
-        }
+        mapRegion = MKCoordinateRegion(center: coordinate, span: mapRegion.span)
         lastMapCenter = coordinate
     }
 }
